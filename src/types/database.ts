@@ -556,6 +556,11 @@ export type Group = {
    * Written only through set_campfire_banner, which checks ownership server-side.
    */
   banner_item_id: string | null;
+  /**
+   * 0292 · the club's own leaderboard switch, off by default: off, the campfire shows no 🏆 panel and
+   * no rank. Written only through set_room_standings (admins). Absent on a server without 0292.
+   */
+  standings_enabled?: boolean;
   created_at: string;
 };
 
@@ -3989,6 +3994,20 @@ export type Database = {
           out_active_today: number;
           out_faces: { user_id: string; name: string; avatar_url: string | null }[] | null;
         }[];
+      };
+      get_group_week_hours: {
+        Args: { p_group_id: string; p_kind?: 'campfire' | 'forest' };
+        Returns: {
+          out_is_member: boolean;
+          out_standings_enabled: boolean;
+          out_this_week_seconds: number | null;
+          out_last_week_to_date_secs: number | null;
+          out_members: number | null;
+        }[];
+      };
+      set_room_standings: {
+        Args: { p_kind: 'campfire' | 'forest'; p_id: string; p_enabled: boolean };
+        Returns: undefined;
       };
       get_chat_live_now: {
         Args: Record<string, never>;

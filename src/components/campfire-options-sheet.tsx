@@ -7,12 +7,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CampfireBadge } from '@/components/campfire-badge';
 import { CampfireBannerPicker } from '@/components/campfire-banner-picker';
+import { ClubWeekCard } from '@/components/club/club-week-card';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useCampfireHeat } from '@/hooks/use-campfire-heat';
 import { useCampfireRole } from '@/hooks/use-campfire-role';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
+import { fetchRoomWeek, type RoomWeek } from '@/lib/api/club';
 import { deleteGroup, fetchJoinRequests, leaveGroup, setChatMuted } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -78,6 +80,20 @@ export function CampfireOptionsSheet({
   const isOwner = isOwnerRole || (!!session && group?.owner_id === session.user.id);
   const [muting, setMuting] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  // Phase 8.2 · the club's week and its standings switch (0292), read each time the sheet opens.
+  const [roomWeek, setRoomWeek] = useState<RoomWeek | null>(null);
+  useEffect(() => {
+    if (!visible) return;
+    let live = true;
+    fetchRoomWeek('campfire', groupId)
+      .then((w) => {
+        if (live) setRoomWeek(w);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [visible, groupId]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [bannerOpen, setBannerOpen] = useState(false);
   const heatByGroupId = useCampfireHeat();
@@ -203,6 +219,21 @@ export function CampfireOptionsSheet({
                 </Text>
               </View>
             </View>
+
+            {roomWeek ? (
+              <View style={styles.clubWeek}>
+                <ClubWeekCard
+                  kind="campfire"
+                  id={groupId}
+                  week={roomWeek}
+                  canManage={isAdmin}
+                  onChanged={(enabled) => {
+                    setRoomWeek((w) => (w ? { ...w, standingsEnabled: enabled } : w));
+                    void onGroupChanged();
+                  }}
+                />
+              </View>
+            ) : null}
 
             {error && <Text style={styles.error}>{error}</Text>}
 
@@ -335,6 +366,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.spaceDim,
     marginTop: 1,
+  },
+  clubWeek: {
+    marginBottom: Spacing.three,
   },
   error: {
     fontFamily: Fonts.body,

@@ -285,13 +285,17 @@ export default function GroupScreen() {
             accessibilityLabel="Campfire posts">
             <NavGlyph name="photo" size={18} color={Colors.ink} />
           </Pressable>
-          <Pressable
-            style={[styles.iconBtn, styles.iconBtnLead]}
-            onPress={() => setLeaderboardVisible(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Open the leaderboard">
-            <NavGlyph name="trophy" size={18} color={Colors.gold} />
-          </Pressable>
+          {/* Phase 8.2 · the 🏆 panel only exists for a campfire whose admins turned standings on
+              (0292, off by default). Off, the options sheet says "Leaderboard off · this club's choice". */}
+          {group?.standings_enabled ? (
+            <Pressable
+              style={[styles.iconBtn, styles.iconBtnLead]}
+              onPress={() => setLeaderboardVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Open the leaderboard">
+              <NavGlyph name="trophy" size={18} color={Colors.gold} />
+            </Pressable>
+          ) : null}
           <Pressable
             style={styles.iconBtn}
             onPress={() => setOptionsVisible(true)}

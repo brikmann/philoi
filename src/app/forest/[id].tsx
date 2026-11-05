@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AgoraCard } from '@/components/agora/agora-card';
 import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
+import { ClubWeekCard } from '@/components/club/club-week-card';
 import { ForestAvatar, ForestSheet, SheetRow } from '@/components/forests/forest-bits';
 import { ForestCampfireSheet } from '@/components/forests/forest-campfire-sheet';
 import { ForestReportSheet } from '@/components/forests/forest-report-sheet';
@@ -17,6 +18,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useChatSupport } from '@/hooks/use-chat-support';
 import { usePublicLoadouts } from '@/hooks/use-public-loadouts';
 import { blockAgoraUser, reportAgora } from '@/lib/api/agora';
+import { fetchRoomWeek, type RoomWeek } from '@/lib/api/club';
 import {
   closeForest,
   fetchForest,
@@ -46,6 +48,20 @@ import type { ForestCampfire, ForestDetail, ForestMember } from '@/types/social'
 //
 // A request-only forest you haven't been let into returns can_read=false: header and the request
 // button only, nothing of what's inside.
+//
+// THE CLUB PAGE (Phase 8.2, mock 335) — this is also the screen you show a club. Under the header:
+// the club's week ("312 hrs locked in together this week", members only, nobody ranked in it) and
+// the standings badge ("✓ Leaderboard off · this club's choice", 0292, off by default; the owner's
+// switch sits beside it). Then the campfires funnel, then Feed · Chat · Members · Events tabs.
+// Events has no model yet — the tab says so rather than inventing a backend.
+
+type ClubTab = 'feed' | 'chat' | 'members' | 'events';
+const CLUB_TABS: { key: ClubTab; label: string }[] = [
+  { key: 'feed', label: 'Feed' },
+  { key: 'chat', label: 'Chat' },
+  { key: 'members', label: 'Members' },
+  { key: 'events', label: 'Events' },
+];
 
 const FEED_PAGE = 20;
 
@@ -74,6 +90,8 @@ export default function ForestScreen() {
   const [postFor, setPostFor] = useState<AgoraItem | null>(null);
   const [memberFor, setMemberFor] = useState<ForestMember | null>(null);
   const [removeMemberFor, setRemoveMemberFor] = useState<ForestMember | null>(null);
+  const [roomWeek, setRoomWeek] = useState<RoomWeek | null>(null);
+  const [tab, setTab] = useState<ClubTab>('feed');
 
   const runId = useRef(0);
 
@@ -89,6 +107,12 @@ export default function ForestScreen() {
       }
       setForest(f);
       setState('ready');
+      // The club's week + standings flag; failing alone just leaves the card out.
+      fetchRoomWeek('forest', id)
+        .then((w) => {
+          if (run === runId.current) setRoomWeek(w);
+        })
+        .catch(() => {});
       if (f.can_read) {
         // The feed failing alone leaves the rest of the forest usable — but it says it failed. Read
         // as "Nothing posted yet", a failed load looked exactly like a post that never went out.
@@ -349,6 +373,18 @@ export default function ForestScreen() {
               )}
             </View>
 
+            {roomWeek ? (
+              <View style={styles.clubWeek}>
+                <ClubWeekCard
+                  kind="forest"
+                  id={forest.id}
+                  week={roomWeek}
+                  canManage={forest.is_owner}
+                  onChanged={(enabled) => setRoomWeek((w) => (w ? { ...w, standingsEnabled: enabled } : w))}
+                />
+              </View>
+            ) : null}
+
             {!forest.can_read ? (
               <Text style={styles.locked}>
                 {isPending
@@ -434,52 +470,82 @@ export default function ForestScreen() {
                   </Pressable>
                 ) : null}
 
-                {/* ── feed ── */}
-                <SpaceSection>FOREST FEED</SpaceSection>
-                {isMember ? (
-                  <Pressable style={styles.composer} onPress={compose} accessibilityRole="button" accessibilityLabel="Post to this forest">
-                    <ForestAvatar name={profile?.display_name ?? ''} url={profile?.avatar_url ?? null} size={28} />
-                    <Text style={styles.composerHint}>Drop your grind here…</Text>
-                    <UiGlyph name="edit" size={16} color={Colors.navEmber2} />
-                  </Pressable>
-                ) : null}
-                {feedError && feed.length === 0 ? (
-                  <Pressable onPress={() => void load()} accessibilityRole="button">
-                    <Text style={styles.quiet}>{`The feed didn’t load — ${feedError} Tap to retry.`}</Text>
-                  </Pressable>
-                ) : feed.length === 0 ? (
-                  <Text style={styles.quiet}>{isMember ? 'Nothing posted yet. Be the first.' : 'Join to post here.'}</Text>
-                ) : (
-                  feed.map((item) => (
-                    <View key={item.id} style={styles.card}>
-                      <AgoraCard
-                        item={item}
-                        loadout={loadouts[item.user_id] ?? {}}
-                        onComment={setCommentsFor}
-                        onMore={setPostFor}
-                      />
-                    </View>
-                  ))
-                )}
-                {!feedDone && feed.length > 0 ? (
-                  <Pressable style={styles.moreBtn} onPress={() => void loadMore()} disabled={loadingMore} accessibilityRole="button">
-                    {loadingMore ? <ActivityIndicator color={Colors.spaceDim} /> : <Text style={styles.ghostText}>Load more</Text>}
-                  </Pressable>
+                {/* ── Feed · Chat · Members · Events (mock 335) ── */}
+                <View style={styles.tabRow} accessibilityRole="tablist">
+                  {CLUB_TABS.map((t) => {
+                    const on = tab === t.key;
+                    return (
+                      <Pressable
+                        key={t.key}
+                        onPress={() => (t.key === 'chat' && canChat ? openChat() : setTab(t.key))}
+                        style={[styles.tabPill, on && styles.tabPillOn]}
+                        accessibilityRole="tab"
+                        accessibilityState={{ selected: on }}>
+                        <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                {tab === 'feed' ? (
+                  <>
+                    {isMember ? (
+                      <Pressable style={styles.composer} onPress={compose} accessibilityRole="button" accessibilityLabel="Post to this forest">
+                        <ForestAvatar name={profile?.display_name ?? ''} url={profile?.avatar_url ?? null} size={28} />
+                        <Text style={styles.composerHint}>Drop your grind here…</Text>
+                        <UiGlyph name="edit" size={16} color={Colors.navEmber2} />
+                      </Pressable>
+                    ) : null}
+                    {feedError && feed.length === 0 ? (
+                      <Pressable onPress={() => void load()} accessibilityRole="button">
+                        <Text style={styles.quiet}>{`The feed didn’t load — ${feedError} Tap to retry.`}</Text>
+                      </Pressable>
+                    ) : feed.length === 0 ? (
+                      <Text style={styles.quiet}>{isMember ? 'Nothing posted yet. Be the first.' : 'Join to post here.'}</Text>
+                    ) : (
+                      feed.map((item) => (
+                        <View key={item.id} style={styles.card}>
+                          <AgoraCard
+                            item={item}
+                            loadout={loadouts[item.user_id] ?? {}}
+                            onComment={setCommentsFor}
+                            onMore={setPostFor}
+                          />
+                        </View>
+                      ))
+                    )}
+                    {!feedDone && feed.length > 0 ? (
+                      <Pressable style={styles.moreBtn} onPress={() => void loadMore()} disabled={loadingMore} accessibilityRole="button">
+                        {loadingMore ? <ActivityIndicator color={Colors.spaceDim} /> : <Text style={styles.ghostText}>Load more</Text>}
+                      </Pressable>
+                    ) : null}
+
+                  </>
                 ) : null}
 
-                {/* ── members ── */}
-                <SpaceSection>MEMBERS</SpaceSection>
-                <View style={styles.members}>
-                  {(forest.members ?? []).map((m) => (
-                    <Pressable key={m.user_id} style={styles.member} onPress={() => tapMember(m)} accessibilityRole="button" accessibilityLabel={m.display_name}>
-                      <ForestAvatar name={m.display_name} url={m.avatar_url} size={40} live={m.locked_in} />
-                      <Text style={styles.memberName} numberOfLines={1}>
-                        {m.display_name.split(' ')[0]}
-                      </Text>
-                      {m.role === 'owner' ? <Text style={styles.memberRole}>owner</Text> : null}
-                    </Pressable>
-                  ))}
-                </View>
+                {tab === 'chat' ? (
+                  <Text style={styles.quiet}>
+                    {isMember ? 'The room chat opens on a newer version of the app.' : 'Join this forest to talk with its members.'}
+                  </Text>
+                ) : null}
+
+                {tab === 'members' ? (
+                  <View style={styles.members}>
+                    {(forest.members ?? []).map((m) => (
+                      <Pressable key={m.user_id} style={styles.member} onPress={() => tapMember(m)} accessibilityRole="button" accessibilityLabel={m.display_name}>
+                        <ForestAvatar name={m.display_name} url={m.avatar_url} size={40} live={m.locked_in} />
+                        <Text style={styles.memberName} numberOfLines={1}>
+                          {m.display_name.split(' ')[0]}
+                        </Text>
+                        {m.role === 'owner' ? <Text style={styles.memberRole}>owner</Text> : null}
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+
+                {tab === 'events' ? (
+                  <Text style={styles.quiet}>Events are coming soon — for now, plan them in the chat.</Text>
+                ) : null}
               </>
             )}
           </ScrollView>
@@ -733,6 +799,34 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.four,
     paddingHorizontal: Spacing.three,
+  },
+  clubWeek: {
+    marginTop: Spacing.three,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: Spacing.four,
+    marginBottom: Spacing.two,
+  },
+  tabPill: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 13,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  tabPillOn: {
+    backgroundColor: Colors.spacePanel2,
+    borderColor: Colors.navEmber2,
+  },
+  tabText: {
+    fontFamily: Fonts.bodySemiBold,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
+  },
+  tabTextOn: {
+    color: Colors.navEmber2,
   },
   quiet: {
     fontFamily: Fonts.body,
