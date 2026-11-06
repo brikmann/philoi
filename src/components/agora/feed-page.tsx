@@ -35,6 +35,7 @@ import { isSharedPost } from '@/lib/api/shared-post';
 import { formatRelativeTime, formatSessionDuration } from '@/lib/format';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
 import { getRewardPreferencesSync } from '@/lib/reward-settings';
+import { openPostedLink } from '@/lib/share-link';
 import type { AgoraItem } from '@/types/database';
 
 // ONE PAGE OF THE IMMERSIVE FEED (mock 317 frame 1). Every post fills the viewport, but the MEDIA
@@ -181,8 +182,9 @@ function FeedPageInner(props: Props) {
 
   function openAttachment(view: AgoraAttachmentView) {
     // Per attachment, as on the list card: a relic opens the relic, a session the session; one with
-    // nowhere to go opens the conversation.
-    if (view.route) router.push(view.route as never);
+    // nowhere to go opens the conversation. A shared link (0294) opens where it lives.
+    if (view.href) openPostedLink(view.href);
+    else if (view.route) router.push(view.route as never);
     else props.onComment(item);
   }
 

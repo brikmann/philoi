@@ -9,7 +9,9 @@ import UniformTypeIdentifiers
 // The hand-off is two files in <group>/share-intake/:
 //   <uuid>.<ext>    the media, copied out of the share's temporary location
 //   pending.json    {"file": "<uuid>.<ext>", "mimeType": "...", "createdAt": <unix s>}
-// A second share before the app reads the first replaces it — one post at a time.
+// A LINK or TEXT share (0294 — an Instagram Reel hands over its URL, never the video) is pending.json
+// alone: {"url"?: "...", "text"?: "...", "createdAt": <unix s>}. A file wins when a share carries
+// both. A second share before the app reads the first replaces it — one post at a time.
 
 private let intakeDir = "share-intake"
 
@@ -36,7 +38,14 @@ final class ShareViewController: UIViewController {
   override func viewDidAppear(_ animated: Bool) {
     super.viewDidAppear(animated)
     guard let provider = firstAttachment() else {
-      fail("Philoi can take one photo or one video.")
+      // 0294 · no file — a link (an Instagram Reel hands over its URL, never the video) or text.
+      if let link = firstLink() {
+        loadLink(link)
+      } else if let text = firstText() {
+        loadText(text)
+      } else {
+        fail("Philoi can take a photo, a video or a link.")
+      }
       return
     }
     let isMovie = provider.hasItemConformingToTypeIdentifier(UTType.movie.identifier)
@@ -54,11 +63,86 @@ final class ShareViewController: UIViewController {
     }
   }
 
+  private var providers: [NSItemProvider] {
+    (extensionContext?.inputItems as? [NSExtensionItem] ?? []).flatMap { $0.attachments ?? [] }
+  }
+
   /// The first movie, else the first image, across everything shared.
   private func firstAttachment() -> NSItemProvider? {
-    let providers = (extensionContext?.inputItems as? [NSExtensionItem] ?? []).flatMap { $0.attachments ?? [] }
-    return providers.first { $0.hasItemConformingToTypeIdentifier(UTType.movie.identifier) }
+    providers.first { $0.hasItemConformingToTypeIdentifier(UTType.movie.identifier) }
       ?? providers.first { $0.hasItemConformingToTypeIdentifier(UTType.image.identifier) }
+  }
+
+  /// A web link. public.url also covers file URLs; those are refused once loaded (scheme check).
+  private func firstLink() -> NSItemProvider? {
+    providers.first { $0.hasItemConformingToTypeIdentifier(UTType.url.identifier) }
+  }
+
+  private func firstText() -> NSItemProvider? {
+    providers.first { $0.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) }
+  }
+
+  /// The text the sending app put beside the attachment ("Check out this Reel"), when it did.
+  private func contentText() -> String? {
+    let items = extensionContext?.inputItems as? [NSExtensionItem] ?? []
+    let text = items.compactMap { $0.attributedContentText?.string }.first { !$0.isEmpty }
+    return text?.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private func loadLink(_ provider: NSItemProvider) {
+    let caption = contentText()
+    provider.loadItem(forTypeIdentifier: UTType.url.identifier, options: nil) { [weak self] item, _ in
+      guard let self else { return }
+      let url: URL? = (item as? URL)
+        ?? (item as? Data).flatMap { URL(dataRepresentation: $0, relativeTo: nil) }
+        ?? (item as? String).flatMap { URL(string: $0) }
+      let web = url.flatMap { u -> String? in
+        guard let scheme = u.scheme?.lowercased(), scheme == "https" || scheme == "http" else { return nil }
+        return u.absoluteString
+      }
+      let stored = web.map { self.store(link: $0, text: caption) } ?? false
+      DispatchQueue.main.async {
+        guard stored else {
+          self.fail("Philoi can take a photo, a video or a web link.")
+          return
+        }
+        self.openApp()
+      }
+    }
+  }
+
+  private func loadText(_ provider: NSItemProvider) {
+    provider.loadItem(forTypeIdentifier: UTType.plainText.identifier, options: nil) { [weak self] item, _ in
+      guard let self else { return }
+      let text = ((item as? String) ?? (item as? Data).flatMap { String(data: $0, encoding: .utf8) })?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      let stored = text.map { !$0.isEmpty && self.store(link: nil, text: String($0.prefix(4000))) } ?? false
+      DispatchQueue.main.async {
+        guard stored else {
+          self.fail("Couldn’t hand this to Philoi. Try sharing it again.")
+          return
+        }
+        self.openApp()
+      }
+    }
+  }
+
+  /// A link / text share: pending.json alone, no file — {"url"?, "text"?, "createdAt"}.
+  private func store(link: String?, text: String?) -> Bool {
+    guard let dir = Self.intakeURL() else { return false }
+    let fm = FileManager.default
+    do {
+      if fm.fileExists(atPath: dir.path) { try fm.removeItem(at: dir) }
+      try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+      var manifest: [String: Any] = ["createdAt": Date().timeIntervalSince1970]
+      if let link { manifest["url"] = link }
+      if let text, !text.isEmpty { manifest["text"] = text }
+      let data = try JSONSerialization.data(withJSONObject: manifest)
+      try data.write(to: dir.appendingPathComponent("pending.json"), options: .atomic)
+      return true
+    } catch {
+      return false
+    }
   }
 
   /// Runs on the provider's queue, while `file` still exists — it's deleted when the callback returns.

@@ -7,6 +7,7 @@ import { RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy/rarity';
 import { formatDistanceKm, formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
+import { LINK_ICON, LINK_TINT, linkCaption, linkThumb, linkTitle, snapshotProvider } from '@/lib/share-link';
 import type {
   AgoraAttachKind,
   AgoraAttachSnapshot,
@@ -52,6 +53,13 @@ export type AgoraAttachmentView = {
   tint: string;
   /** Where tapping the card should land (spec: "Feed item routes to the underlying thing"). */
   route: { pathname: string; params?: Record<string, string> } | null;
+  /**
+   * A link attachment (0294) opens OUTSIDE the app — the Reel in Instagram, the clip in YouTube.
+   * Set only for `link`; a renderer checks it before `route`.
+   */
+  href?: string | null;
+  /** An image drawn in place of the glyph tile — a YouTube link's own thumbnail. */
+  thumb?: string | null;
   /**
    * The lift, when the attachment is a gym session. Null for every other kind AND for a gym
    * session posted before migration 0192 froze any of this — an old post keeps rendering as the
@@ -274,6 +282,26 @@ export function attachmentView(
       };
     }
 
+    case 'link': {
+      // 0294 · a link shared in from another app. A row with no URL is a snapshot this build can't
+      // read — null, so it draws as its caption alone, the same as an older build does.
+      if (!snap.url) return null;
+      const provider = snapshotProvider(snap);
+      return {
+        title: linkTitle(snap.url, provider),
+        subtitle: linkCaption(snap.url),
+        eyebrow: null,
+        eyebrowColor: Colors.muted,
+        icon: LINK_ICON[provider],
+        art: null,
+        tint: LINK_TINT[provider],
+        route: null,
+        lift: null,
+        href: snap.url,
+        thumb: linkThumb(snap.url),
+      };
+    }
+
     default:
       return null;
   }
@@ -288,8 +316,10 @@ export function attachmentView(
  * that a reader learns where to find the lock-in on a card instead of re-scanning each one.
  *
  * Lock-in first: it is the thing that just happened, and the achievement is the standing it moved.
+ * A shared link (0294) leads even that — on a post that carries one, the Reel IS the post.
  */
 const ATTACH_ORDER: AgoraAttachKind[] = [
+  'link',
   'lockin',
   'milestone',
   'rank',

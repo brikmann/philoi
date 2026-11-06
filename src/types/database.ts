@@ -4382,7 +4382,7 @@ export type AgoraAudience = 'friends' | 'campfire' | 'forest' | 'everyone' | 'ca
 export type AgoraVisibility = 'friends' | 'campus' | 'public';
 
 /** What a post can carry (mock 162 panels 4-5), plus the milestone rows the feed folds in. */
-export type AgoraAttachKind = 'milestone' | 'lockin' | 'rank' | 'streak' | 'pass' | 'cosmetic' | 'pr' | 'video';
+export type AgoraAttachKind = 'milestone' | 'lockin' | 'rank' | 'streak' | 'pass' | 'cosmetic' | 'pr' | 'video' | 'link';
 
 /**
  * What the composer SENDS: which achievement, never what it says. `create_agora_post` re-reads
@@ -4502,6 +4502,11 @@ export type AgoraAttachSnapshot = {
   duration_s?: number;
   width?: number | null;
   height?: number | null;
+  // link (0294) — a URL shared in from another app (an Instagram Reel, a TikTok). The key IS the
+  // URL; the server checked its shape and froze the host and which app it belongs to.
+  url?: string;
+  host?: string;
+  provider?: string;
 };
 
 /** One card in the square — a freeform post, or a milestone that auto-surfaced into it. */

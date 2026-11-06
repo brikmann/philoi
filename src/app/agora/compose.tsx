@@ -41,8 +41,11 @@ import {
 import { channelKey, createCampfirePost, fetchMyFeedChannels } from '@/lib/api/feed-channels';
 import { createForestPost } from '@/lib/api/forests';
 import { fetchProfileIdentity } from '@/lib/api/identity';
+import { markSharedPost } from '@/lib/api/shared-post';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
+import type { ComposeShareParams } from '@/lib/share-intake';
+import { LINK_ICON, LINK_TINT, isPostableLink, linkCaption, linkProviderOf, linkThumb, linkTitle } from '@/lib/share-link';
 import type { AgoraAttachInput, AgoraVisibility } from '@/types/database';
 import type { Anthem, FeedChannel } from '@/types/social';
 
@@ -82,6 +85,12 @@ import type { Anthem, FeedChannel } from '@/types/social';
 // over-long pick is refused with a message instead. Attaching a clip pulls the audience in to
 // Friends — a clip reaches further than a photo, so the wider dial is a choice, never the default.
 //
+// SHARED IN (0294). Share → Philoi lands here for a LINK (an Instagram Reel arrives as its URL,
+// never its video — so it posts as a link card that opens the Reel) or text, and for a photo / clip
+// the import composer sent on to a campfire or forest. ?source=share + sharedUrl / sharedText /
+// sharedUri + sharedMime / pick prefill the slots; nothing else about the sheet changes. The link
+// goes up as {kind: 'link', key: url}, and the server checks its shape and freezes the provider.
+//
 // ANTHEM IS TEXT, NOT AN ATTACHMENT. There is no `anthem` attach kind server-side and this pass is
 // client-only, so the anthem rides in the body as one closing line ("♪ Title — Artist" + link) —
 // what you would type yourself, built from the anthem already on your identity card.
@@ -118,7 +127,12 @@ type Lane = { kind: 'forest' | 'campfire'; id: string; name: string; emoji?: str
 export default function AgoraComposeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
-  const params = useLocalSearchParams<{ forestId?: string; forestName?: string; campfireId?: string; campfireName?: string }>();
+  const params = useLocalSearchParams<
+    { forestId?: string; forestName?: string; campfireId?: string; campfireName?: string } & Partial<ComposeShareParams>
+  >();
+  // 0294 · opened by a share (agora/import hands a link, text, or a photo / clip bound for a room on).
+  const sharedUri = params.source === 'share' ? params.sharedUri || null : null;
+  const sharedIsVideo = Boolean(sharedUri && params.sharedMime?.startsWith('video/'));
 
   // Null = the square.
   const [lane, setLane] = useState<Lane | null>(
@@ -132,8 +146,12 @@ export default function AgoraComposeScreen() {
   // Your campfires, then your forests — the same list the Feed's channel row draws.
   const [myChannels, setMyChannels] = useState<FeedChannel[] | null>(null);
 
-  const [body, setBody] = useState('');
-  const [photoUri, setPhotoUri] = useState<string | null>(null);
+  const [body, setBody] = useState(() => (params.source === 'share' ? (params.sharedText ?? '').slice(0, MAX) : ''));
+  const [photoUri, setPhotoUri] = useState<string | null>(sharedUri && !sharedIsVideo ? sharedUri : null);
+  // 0294 · the link slot — only ever filled by a share (an Instagram Reel's URL). One per post.
+  const [link, setLink] = useState<string | null>(() =>
+    params.source === 'share' && params.sharedUrl && isPostableLink(params.sharedUrl) ? params.sharedUrl : null
+  );
   // Independent, keyed by slot. Nothing in this file writes one of these while reading another —
   // that coupling is exactly what made the media types trample each other.
   const [attached, setAttached] = useState<Partial<Record<AttachSlot, AchievementChoice>>>({});
@@ -148,6 +166,10 @@ export default function AgoraComposeScreen() {
   // Bumped on every pick/remove, so a slow compress that finishes after you removed or replaced
   // the clip doesn't land in the slot anyway.
   const videoRun = useRef(0);
+  // The run that prepared the SHARED clip. Still current at Post = the clip is the shared one, so the
+  // post keeps "↳ from your story"; any later pick or remove bumps videoRun past it.
+  const sharedVideoRun = useRef<number | null>(null);
+  const shareRead = useRef(false);
 
   // WHO SEES IT (0280, mock 320). With no lane, the post is for your friends or for everyone — the
   // only two square audiences the picker offers (legacy 'campus' posts keep theirs, but it isn't
@@ -161,7 +183,7 @@ export default function AgoraComposeScreen() {
   );
 
   const canPost =
-    Boolean(body.trim() || photoUri || chosen.length || withAnthem || video) && !posting && preparing === null;
+    Boolean(body.trim() || photoUri || chosen.length || withAnthem || video || link) && !posting && preparing === null;
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -177,6 +199,23 @@ export default function AgoraComposeScreen() {
       alive = false;
     };
   }, [profile?.id]);
+
+  // 0294 · a shared clip is prepared like a picked one; "A campfire" / "A forest" from the import
+  // composer opens straight onto the room picker. Once per mount — the params don't change, and a
+  // re-run would re-encode the clip.
+  useEffect(() => {
+    if (shareRead.current || params.source !== 'share') return;
+    shareRead.current = true;
+    if (sharedUri && sharedIsVideo) void prepareVideo(sharedUri, null, true);
+    if (params.pick === 'campfire' || params.pick === 'forest') openLanePicker(params.pick);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /** Back where it came from — or Home, when a cold-start share opened this with nothing under it. */
+  function leave() {
+    if (router.canGoBack()) router.back();
+    else router.replace('/');
+  }
 
   function openLanePicker(kind: Lane['kind']) {
     setLaneKind(kind);
@@ -251,13 +290,19 @@ export default function AgoraComposeScreen() {
     const asset = result.canceled ? null : result.assets[0];
     if (!asset) return;
 
+    await prepareVideo(asset.uri, asset.duration);
+  }
+
+  /** Compress + poster a clip into the video slot — a pick, or the shared clip (0294, `shared`). */
+  async function prepareVideo(uri: string, durationMs?: number | null, shared = false): Promise<void> {
     const run = (videoRun.current += 1);
+    sharedVideoRun.current = shared ? run : null;
     setVideo(null);
     setPreparing(0);
     // A clip follows the post's audience like a photo does (Noah, 2026-10-27) — picking one doesn't
     // narrow it. An Everyone post still confirms once on Post (below).
     try {
-      const prepared = await prepareAgoraVideo({ uri: asset.uri, durationMs: asset.duration }, (p) => {
+      const prepared = await prepareAgoraVideo({ uri, durationMs }, (p) => {
         if (run === videoRun.current) setPreparing(p);
       });
       if (run === videoRun.current) setVideo(prepared);
@@ -322,6 +367,13 @@ export default function AgoraComposeScreen() {
         const key = await uploadAgoraVideo(video, setUploading);
         attachments.push({ kind: 'video', ref_id: null, key });
       }
+      // 0294 · the shared link, by URL alone — the server checks its shape and freezes the provider.
+      if (link) attachments.push({ kind: 'link', ref_id: null, key: link });
+      // A photo / clip shared in and still on the post keeps its "↳ from your story" tag (0286).
+      const fromShare =
+        (sharedUri !== null && photoUri === sharedUri) ||
+        (video !== null && sharedVideoRun.current !== null && sharedVideoRun.current === videoRun.current);
+      let postId: string;
       // The anthem line goes last and the typed text gives way to it, so the post still fits 1000.
       const typed = body.trim();
       const tail = withAnthem && anthem ? anthemLine(anthem) : '';
@@ -329,19 +381,20 @@ export default function AgoraComposeScreen() {
         ? `${typed.slice(0, Math.max(0, MAX - tail.length - 2))}${typed ? '\n\n' : ''}${tail}`
         : body;
       if (lane?.kind === 'campfire') {
-        const id = await createCampfirePost({ campfireId: lane.id, userId: profile.id, body: text, photoUri, attachments });
+        postId = await createCampfirePost({ campfireId: lane.id, userId: profile.id, body: text, photoUri, attachments });
         // Lands on top only if the feed underneath is showing this campfire's channel.
-        announceAgoraPost({ id, itemType: 'post', channel: channelKey({ kind: 'campfire', id: lane.id }) });
+        announceAgoraPost({ id: postId, itemType: 'post', channel: channelKey({ kind: 'campfire', id: lane.id }) });
       } else if (lane) {
-        const id = await createForestPost({ forestId: lane.id, userId: profile.id, body: text, photoUri, attachments });
+        postId = await createForestPost({ forestId: lane.id, userId: profile.id, body: text, photoUri, attachments });
         // On top in that forest's channel, or in All (0280: All carries your rooms).
-        announceAgoraPost({ id, itemType: 'post', channel: channelKey({ kind: 'forest', id: lane.id }) });
+        announceAgoraPost({ id: postId, itemType: 'post', channel: channelKey({ kind: 'forest', id: lane.id }) });
       } else {
-        const id = await createAgoraPost({ body: text, photoUri, userId: profile.id, visibility, attachments });
+        postId = await createAgoraPost({ body: text, photoUri, userId: profile.id, visibility, attachments });
         // The feed under this modal puts it on top, highlighted (mock 306 frame 3).
-        announceAgoraPost({ id, itemType: 'post' });
+        announceAgoraPost({ id: postId, itemType: 'post' });
       }
-      router.back();
+      if (fromShare) await markSharedPost(postId);
+      leave();
     } catch (e) {
       Alert.alert('Could not post', getErrorMessage(e, 'Something went wrong.'));
     } finally {
@@ -387,7 +440,7 @@ export default function AgoraComposeScreen() {
       <SafeAreaView edges={['top']} style={styles.safeArea}>
         <View style={styles.grab} />
         <View style={styles.topBar}>
-          <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button">
+          <Pressable onPress={leave} hitSlop={10} accessibilityRole="button">
             <Text style={styles.cancel}>Cancel</Text>
           </Pressable>
           <Text style={styles.topTitle} numberOfLines={1}>
@@ -434,6 +487,8 @@ export default function AgoraComposeScreen() {
                   onRemove={() => clearSlot(slot)}
                 />
               ))}
+
+              {link ? <LinkPreview url={link} onRemove={() => setLink(null)} /> : null}
 
               {withAnthem && anthem ? (
                 <AttachedChip
@@ -623,6 +678,37 @@ function AttachedChip({ icon, label, onRemove }: { icon: NavGlyphName; label: st
         {label}
       </Text>
       <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel={`Remove ${label}`}>
+        <Ionicons name="close" size={15} color={Colors.textTertiary} />
+      </Pressable>
+    </View>
+  );
+}
+
+/**
+ * The shared link (0294), as the card will draw it: the provider's tile, "Instagram Reel", the
+ * address. Removable like any slot; a link only ever arrives by share, so there's no button to add one.
+ */
+function LinkPreview({ url, onRemove }: { url: string; onRemove: () => void }) {
+  const provider = linkProviderOf(url);
+  const thumb = linkThumb(url);
+  return (
+    <View style={styles.linkCard}>
+      <View style={[styles.linkTile, { backgroundColor: LINK_TINT[provider] }]}>
+        {thumb ? (
+          <Image source={{ uri: thumb }} style={StyleSheet.absoluteFill} contentFit="cover" />
+        ) : (
+          <Ionicons name={LINK_ICON[provider]} size={20} color={Colors.ink} />
+        )}
+      </View>
+      <View style={styles.flex}>
+        <Text style={styles.linkTitle} numberOfLines={1}>
+          {linkTitle(url, provider)}
+        </Text>
+        <Text style={styles.linkSub} numberOfLines={1}>
+          {linkCaption(url)}
+        </Text>
+      </View>
+      <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel="Remove link">
         <Ionicons name="close" size={15} color={Colors.textTertiary} />
       </Pressable>
     </View>
@@ -874,6 +960,36 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12,
     color: Colors.ink,
+  },
+  linkCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.twelve,
+    marginTop: Spacing.two,
+    borderRadius: Radius.card,
+    padding: 10,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  linkTile: {
+    width: 42,
+    height: 42,
+    borderRadius: 11,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkTitle: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
+    color: Colors.ink,
+  },
+  linkSub: {
+    fontFamily: Fonts.body,
+    fontSize: 11,
+    color: Colors.textTertiary,
+    marginTop: 1,
   },
   media: {
     flexDirection: 'row',

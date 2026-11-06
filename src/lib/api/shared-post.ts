@@ -139,6 +139,14 @@ async function stampShared(postId: string, workoutSetId: string | null): Promise
   if (error) console.warn('[shared-post] could not stamp the post:', error.message);
 }
 
+/**
+ * A shared photo / clip that went on to agora/compose (to a campfire or forest) still wears "↳ from
+ * your story". NOT for a shared link: a Reel link is often somebody else's Reel, so the tag would lie.
+ */
+export function markSharedPost(postId: string): Promise<void> {
+  return stampShared(postId, null);
+}
+
 // ───────────────────────────── the "from your story" tag ─────────────────────────────
 
 const TTL_MS = 10 * 60 * 1000;

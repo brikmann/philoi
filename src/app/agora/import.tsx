@@ -28,7 +28,7 @@ import { fetchExercises } from '@/lib/api/gym';
 import { postSharedLift, postSharedPlain, SHARED_LIFT_MAX_SECONDS } from '@/lib/api/shared-post';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
-import { consumeSharedMedia, isSharedVideo, type SharedMedia } from '@/lib/share-intake';
+import { consumeShare, isSharedVideo, type ComposeShareParams, type SharedMedia } from '@/lib/share-intake';
 import type { Exercise } from '@/types/database';
 
 // "Share → Philoi" (mock 324, frame 2). A photo or clip shared in from the OS share sheet —
@@ -44,8 +44,10 @@ import type { Exercise } from '@/types/database';
 // ⚔ is for clips only, and only weighted lifts — the one shape a head-to-head compares today. A
 // ⚔ clip is held to the gym clip's 30s, not the Agora's 60s: it IS a set clip.
 //
-// WHO SEES IT: Friends only (default) or Everyone. Campfires and forests stay on the in-app
-// composer — a shared clip is a square post. A clip never goes public silently (the same rule as
+// WHO SEES IT: Friends only (default) or Everyone here. "A campfire" / "A forest" hand the photo or
+// clip on to the in-app composer (agora/compose), whose picker lists your rooms — not offered with
+// ⚔ on, which is a square post. A LINK share (0294) never stops here: it goes straight on to
+// agora/compose. A clip never goes public silently (the same rule as
 // agora/compose, and the minor-safety default — there is no age gate to tell a minor apart, so it
 // holds for everyone): Everyone + a clip asks once, on Post.
 
@@ -85,8 +87,19 @@ export default function AgoraImportScreen() {
     read.current = true;
     let alive = true;
     (async () => {
-      const shared = await consumeSharedMedia();
+      const share = await consumeShare();
       if (!alive) return;
+      // 0294 · a link (an Instagram Reel — its URL, never its video) or text has no ⚔ question to
+      // ask; it goes on to the in-app composer, which posts it as a link card to any audience.
+      // Replaced, so Back from compose doesn't land on this screen with nothing in it.
+      if (share?.kind === 'link') {
+        const params: ComposeShareParams = { source: 'share' };
+        if (share.url) params.sharedUrl = share.url;
+        if (share.text) params.sharedText = share.text;
+        router.replace({ pathname: '/agora/compose', params });
+        return;
+      }
+      const shared = share?.media ?? null;
       setMedia(shared);
       if (!shared || !isSharedVideo(shared)) return;
       setPreparing(0);
@@ -104,7 +117,18 @@ export default function AgoraImportScreen() {
     return () => {
       alive = false;
     };
+    // Once per mount, on purpose: `read` guards the consume, and a dep change would run the cleanup
+    // and strand an in-flight video prepare with alive = false. useRouter() is stable regardless.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /** A photo / clip into a campfire or forest — agora/compose's room picker, with the media on it. */
+  function toRoom(kind: 'campfire' | 'forest') {
+    if (!media) return;
+    const params: ComposeShareParams = { source: 'share', sharedUri: media.uri, sharedMime: media.mimeType, pick: kind };
+    if (body.trim()) params.sharedText = body.trim();
+    router.replace({ pathname: '/agora/compose', params });
+  }
 
   const isVideo = Boolean(media && isSharedVideo(media));
   const tooLongForLift = Boolean(video && video.durationS > SHARED_LIFT_MAX_SECONDS + 0.5);
@@ -291,6 +315,20 @@ export default function AgoraImportScreen() {
               on={visibility === 'public'}
               onPress={() => setVisibility('public')}
             />
+            {/* A room is agora/compose's job (its picker lists yours). Not offered with ⚔ on: a
+                challenge is a square post, and the hand-off would drop the set you just named. */}
+            {!challenge ? (
+              <>
+                <AudienceOption
+                  icon="campfire"
+                  label="A campfire"
+                  sub="pick which"
+                  on={false}
+                  onPress={() => toRoom('campfire')}
+                />
+                <AudienceOption icon="forest" label="A forest" sub="pick which" on={false} onPress={() => toRoom('forest')} />
+              </>
+            ) : null}
             <Text style={styles.note}>Comment-only · no likes. Tagged “from your story”.</Text>
           </ScrollView>
         </KeyboardAvoidingView>

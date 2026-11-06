@@ -11,11 +11,23 @@ export type SharedMedia = {
   mimeType: string;
 };
 
+/**
+ * What a share carried. A FILE (uri + mimeType — a photo or a clip) or a LINK / TEXT (0294 — an
+ * Instagram Reel arrives as its URL, never its video). Builds before the link half only ever return
+ * the file shape, which is why every field is optional here and the JS sorts it out.
+ */
+export type SharedPayload = Partial<SharedMedia> & {
+  /** The shared URL itself (iOS: a public.url attachment). */
+  url?: string | null;
+  /** Shared text — Android's EXTRA_TEXT, iOS's plain-text attachment. Often carries the URL. */
+  text?: string | null;
+};
+
 type PhiloiShareIntakeModule = {
   /** A share is waiting (iOS: the extension left one; Android: the launch / newest intent is one). */
   hasPendingShare: () => boolean;
   /** Takes the waiting share, or null. Each share is returned once. */
-  consumePendingShare: () => Promise<SharedMedia | null>;
+  consumePendingShare: () => Promise<SharedPayload | null>;
   /** Android only: a share arrived while the app was already running. */
   addListener: (event: 'onShareReceived', listener: () => void) => EventSubscription;
 };

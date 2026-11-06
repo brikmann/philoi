@@ -6,14 +6,19 @@
 	<dict>
 		<key>NSExtensionAttributes</key>
 		<dict>
-			<!-- One photo or one clip: what a Philoi post carries. Never TRUEPREDICATE (App Review
-			     rejects it); see expo-target.config.js. -->
+			<!-- One photo, one clip, or one link / text (0294 — an Instagram Reel shares its URL,
+			     never its video): what a Philoi post carries. Never TRUEPREDICATE (App Review rejects
+			     it); see expo-target.config.js. -->
 			<key>NSExtensionActivationRule</key>
 			<dict>
 				<key>NSExtensionActivationSupportsImageWithMaxCount</key>
 				<integer>1</integer>
 				<key>NSExtensionActivationSupportsMovieWithMaxCount</key>
 				<integer>1</integer>
+				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
+				<integer>1</integer>
+				<key>NSExtensionActivationSupportsText</key>
+				<true/>
 			</dict>
 		</dict>
 		<key>NSExtensionPrincipalClass</key>

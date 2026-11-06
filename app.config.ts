@@ -120,9 +120,10 @@ const config: ExpoConfig = {
       // one photo or one clip. modules/philoi-share-intake reads the intent; the iOS half is the
       // Share Extension in targets/share-intake. One of each, never SEND_MULTIPLE — a post carries
       // one photo or one clip, and offering a multi-select share would drop all but one silently.
+      // text/plain is the LINK share (0294): Instagram shares a Reel as its URL, never its video.
       {
         action: 'SEND',
-        data: [{ mimeType: 'image/*' }, { mimeType: 'video/*' }],
+        data: [{ mimeType: 'image/*' }, { mimeType: 'video/*' }, { mimeType: 'text/plain' }],
         category: ['DEFAULT'],
       },
     ],

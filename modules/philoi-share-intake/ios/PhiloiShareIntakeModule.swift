@@ -2,7 +2,8 @@ import ExpoModulesCore
 import Foundation
 
 // The app's half of "Share → Philoi" (mock 324). targets/share-intake/ShareViewController.swift
-// leaves the shared file + pending.json in <group>/share-intake/ and opens philoi://share-intake;
+// leaves the shared file + pending.json (or, for a link / text share, pending.json alone — 0294)
+// in <group>/share-intake/ and opens philoi://share-intake;
 // src/app/share-intake.tsx then calls consumePendingShare(), which MOVES the file into this app's
 // own caches (so the App Group never holds a clip longer than one hand-off) and returns it.
 //
@@ -30,13 +31,20 @@ public class PhiloiShareIntakeModule: Module {
 
       guard
         let data = fm.contents(atPath: dir.appendingPathComponent("pending.json").path),
-        let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-        let file = manifest["file"] as? String,
-        let mimeType = manifest["mimeType"] as? String
+        let manifest = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
       else { return nil }
 
       let createdAt = manifest["createdAt"] as? Double ?? 0
       if Date().timeIntervalSince1970 - createdAt > Self.maxAge { return nil }
+
+      // 0294 · a LINK or TEXT share (an Instagram Reel arrives as its URL) carries no file — the
+      // manifest is the whole share.
+      guard let file = manifest["file"] as? String, let mimeType = manifest["mimeType"] as? String else {
+        var share: [String: Any] = [:]
+        if let url = manifest["url"] as? String { share["url"] = url }
+        if let text = manifest["text"] as? String { share["text"] = text }
+        return share.isEmpty ? nil : share
+      }
 
       let source = dir.appendingPathComponent(file)
       guard

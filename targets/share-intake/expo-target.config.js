@@ -9,7 +9,8 @@
 // THIS TARGET DRAWS NOTHING WORTH DRAWING. It copies the one shared file into the App Group the app
 // already has (group.<bundle id>, the Focus Nudge pipe — withFocusNudgeEntitlements gives the app
 // target the same group), writes a one-line manifest beside it, and opens the app at
-// `philoi://share-intake`. The real composer is the app's own (src/app/agora/import.tsx), so the
+// `philoi://share-intake` (a link or text share writes the manifest alone). The real composer is
+// the app's own (src/app/agora/import.tsx, which hands a link on to agora/compose), so the
 // extension never runs React Native — `exportJs` stays off, and the extension stays far under iOS's
 // ~120 MB share-extension memory ceiling even for a long clip (the file is copied, never loaded).
 //
@@ -21,7 +22,8 @@
 //
 // The Info.plist beside this file is committed, not generated: apple-targets only writes one when
 // it is missing, and its default activation rule is TRUEPREDICATE, which App Review rejects. Ours
-// declares exactly one image or one movie.
+// declares exactly one image, one movie, or one web URL / text (0294: Instagram shares a Reel as its
+// URL, so without the URL key Philoi never appears in Instagram's share sheet at all).
 module.exports = (config) => ({
   type: 'share',
 

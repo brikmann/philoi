@@ -24,6 +24,7 @@ import { itemVideo } from '@/lib/api/agora-video';
 import { AgoraVideoTile } from '@/components/agora/agora-video-tile';
 import { formatRelativeTime } from '@/lib/format';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
+import { openPostedLink } from '@/lib/share-link';
 import type { AgoraItem } from '@/types/database';
 
 // One card in the square (mock 162 panel 1). Renders both feed row types — a freeform post and a
@@ -99,8 +100,10 @@ function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
     // Spec: "Feed item routes to the underlying thing (relic → inventory, challenge → board)."
     // PER ATTACHMENT, not per card: on a post carrying a lock-in and a relic, tapping the relic
     // must not open the session. One with nothing to route to falls through to the comments,
-    // which is the other thing someone tapping a card is plausibly reaching for.
-    if (view.route) router.push(view.route as never);
+    // which is the other thing someone tapping a card is plausibly reaching for. A shared link
+    // (0294) opens where it lives — the Reel in Instagram.
+    if (view.href) openPostedLink(view.href);
+    else if (view.route) router.push(view.route as never);
     else onComment(item);
   }
 
@@ -265,6 +268,12 @@ function AttachmentHeadRow({
       {view.art ? (
         <View style={[styles.attachIcon, styles.attachIconArt]}>
           <ItemArt item={view.art} size={32} motion="off" />
+        </View>
+      ) : view.thumb ? (
+        // A link's own thumbnail (a YouTube clip's) in the tile, the glyph's colour behind it while
+        // it loads — and if it never does, the tile still reads as the provider's.
+        <View style={[styles.attachIcon, styles.attachIconArt, { backgroundColor: view.tint }]}>
+          <Image source={{ uri: view.thumb }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
         </View>
       ) : (
         <View style={[styles.attachIcon, { backgroundColor: view.tint }]}>

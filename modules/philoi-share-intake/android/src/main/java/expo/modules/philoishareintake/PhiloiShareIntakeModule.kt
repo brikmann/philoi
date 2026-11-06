@@ -10,8 +10,9 @@ import expo.modules.kotlin.modules.ModuleDefinition
 import java.io.File
 import java.util.UUID
 
-// The Android half of "Share → Philoi" (mock 324). MainActivity carries a SEND filter for image/*
-// and video/* (app.config.ts), so Philoi shows up in the system share sheet. A share arrives as:
+// The Android half of "Share → Philoi" (mock 324). MainActivity carries a SEND filter for image/*,
+// video/* and text/plain (app.config.ts; text is 0294's link share — an Instagram Reel arrives as
+// its URL), so Philoi shows up in the system share sheet. A share arrives as:
 //   * the LAUNCH intent, when Philoi wasn't running — read from currentActivity.intent;
 //   * onNewIntent, when it was (MainActivity is singleTask) — kept here, and "onShareReceived" fires
 //     so the JS can route to the composer without waiting for a cold start.
@@ -48,6 +49,13 @@ class PhiloiShareIntakeModule : Module() {
       // Replaced rather than mutated — the activity re-reads getIntent() on recreate.
       appContext.currentActivity?.intent = Intent(Intent.ACTION_MAIN)
 
+      // 0294 · a LINK / TEXT share. Instagram shares a Reel as its URL in EXTRA_TEXT — never the
+      // video — so this is the Reel path. The JS pulls the URL out of the text.
+      if (intent.type?.startsWith("text/") == true) {
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()?.take(4000)
+        return@AsyncFunction if (text.isNullOrEmpty()) null else mapOf("text" to text)
+      }
+
       val uri = IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)
         ?: return@AsyncFunction null
       val mime = context.contentResolver.getType(uri) ?: intent.type ?: return@AsyncFunction null
@@ -80,6 +88,6 @@ class PhiloiShareIntakeModule : Module() {
   private fun isShare(intent: Intent?): Boolean {
     if (intent?.action != Intent.ACTION_SEND) return false
     val type = intent.type ?: return false
-    return type.startsWith("image/") || type.startsWith("video/")
+    return type.startsWith("image/") || type.startsWith("video/") || type == "text/plain"
   }
 }
