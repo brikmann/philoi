@@ -1,24 +1,19 @@
 import { Stack, useRouter } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { EquippedHexGlow, PublicTitle } from '@/components/economy/loadout-bits';
 import { CosmeticAvatar, useResolvedLoadout } from '@/components/economy/public-identity';
 import { FriendPingSheet } from '@/components/friend-ping-sheet';
 import { HouseSeal } from '@/components/house/house-seal';
-import { IdentityLine } from '@/components/house/identity-line';
 import { LiveStatusBadge } from '@/components/live-status-badge';
 import { LockinGoalPicker } from '@/components/lockin-goal-picker';
-import { RankBadge } from '@/components/rank-badge';
 import { EmberSearchBar } from '@/components/ui/ember-search-bar';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { Icon } from '@/components/ui/icon';
 import { SocialGlyph } from '@/components/ui/glyphs-social';
-import { NavGlyph } from '@/components/ui/nav-glyph';
 import { SPACE_GUTTER, SpaceHeader, SpaceIconButton, SpaceSection } from '@/components/ui/space-kit';
-import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFriends } from '@/hooks/use-friends';
 import {
@@ -46,12 +41,9 @@ function PeopleScreenContent() {
   const [sheetFriend, setSheetFriend] = useState<Friend | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [lockInWithCircle, setLockInWithCircle] = useState<{ id: string; name: string | null } | null>(null);
-  // friend_ids currently showing the ✓ nudge confirmation (reverts to the 🔥 after ~1.4s).
-  const [nudged, setNudged] = useState<Set<string>>(new Set());
   // What the last send on the open sheet did — 'sent' / 'sent_no_push' / 'rate_limited' (0207).
   // Cleared whenever a different friend's sheet opens, so it can never describe the wrong person.
   const [lastPing, setLastPing] = useState<PingResult | null>(null);
-  const nudgeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Live "locked in now" by user id → the goal label for their status line (design-mocks/06's
   // presence source). A friend in this map is locked in right now.
@@ -85,20 +77,9 @@ function PeopleScreenContent() {
   }
 
   async function handleNudge(f: Friend) {
-    // Optimistic ✓ confirmation (design-mocks/21's quickPing) — reverts after a moment.
-    setNudged((prev) => new Set(prev).add(f.friend_id));
-    clearTimeout(nudgeTimers.current[f.friend_id]);
-    nudgeTimers.current[f.friend_id] = setTimeout(() => {
-      setNudged((prev) => {
-        const next = new Set(prev);
-        next.delete(f.friend_id);
-        return next;
-      });
-    }, 1400);
     try {
-      // 0207 · the RPC reports what it actually did. The ✓ above is still optimistic, because the
-      // row has one glyph and no room to explain — but the SHEET has room, so it shows the truth
-      // rather than a tick that means nothing.
+      // 0207 · the RPC reports what it actually did; the sheet (the only place a nudge is sent from
+      // now that the row's flame is gone) shows that result line.
       setLastPing(await nudgeToLockIn(f.friend_id));
     } catch (e) {
       setLastPing(null);
@@ -219,9 +200,7 @@ function PeopleScreenContent() {
                   loadout={loadouts[f.friend_id]}
                   status={statusLine(f)}
                   lockedIn
-                  nudged={false}
                   onOpen={() => openSheet(f)}
-                  onQuick={() => handleLockInWith(f)}
                   onMessage={() => handleMessage(f)}
                 />
               </View>
@@ -240,9 +219,7 @@ function PeopleScreenContent() {
                   status={statusLine(f)}
                   lockedIn={false}
                   presence={presence[f.friend_id]}
-                  nudged={nudged.has(f.friend_id)}
                   onOpen={() => openSheet(f)}
-                  onQuick={() => handleNudge(f)}
                   onMessage={() => handleMessage(f)}
                 />
               </View>
@@ -287,15 +264,17 @@ export default function PeopleScreen() {
   );
 }
 
+// The row reads name · one status line · Message (copy/declutter pass). Title, school, rank hex and
+// the flame button came off: a friend's rank isn't yours to see by default (rank is your own view,
+// opt-in to others, in Standings), and the nudge / lock-in-with are one tap away in the sheet the row
+// opens — so the row offers ONE shortcut, not three.
 function FriendRow({
   loadout,
   friend,
   status,
   lockedIn,
   presence,
-  nudged,
   onOpen,
-  onQuick,
   onMessage,
 }: {
   friend: Friend;
@@ -305,9 +284,7 @@ function FriendRow({
   loadout?: PublicLoadout;
   status: string;
   lockedIn: boolean;
-  nudged: boolean;
   onOpen: () => void;
-  onQuick: () => void;
   /** WS3 · straight into the 1:1 thread, skipping the sheet. */
   onMessage: () => void;
 }) {
@@ -316,9 +293,8 @@ function FriendRow({
   return (
     <Pressable style={({ pressed }) => [styles.row, pressed && styles.rowPressed]} onPress={onOpen}>
       <View style={styles.avatarWrap}>
-        {/* Their gear, not a bare circle — this list is where you look at your friends most, so it
-            was the loudest place a bought title rendered as nothing. Flares stay static: this is a
-            list, and the live dot is the one thing here that should pull the eye. */}
+        {/* Their gear, not a bare circle — this list is where you look at your friends most. Flares
+            stay static: this is a list, and the live dot is the one thing here that should pull the eye. */}
         <CosmeticAvatar
           userId={friend.friend_id}
           name={friend.display_name}
@@ -338,43 +314,22 @@ function FriendRow({
           </Text>
           <HouseSeal userId={friend.friend_id} size={15} style={styles.seal} />
         </View>
-        <PublicTitle loadout={resolved} compact />
-        <IdentityLine userId={friend.friend_id} style={styles.identity} />
-        <Text style={[styles.status, lockedIn && styles.statusOn]} numberOfLines={1}>
-          {status}
-        </Text>
-        <LiveStatusBadge presence={presence} lastActive />
+        {/* One status line: live presence ("Online now" / "Active 2h ago") when there is any, else
+            the lock-in line ("Locked in now · Gym", "Last locked in 3d ago"). */}
+        {!lockedIn && presence ? (
+          <LiveStatusBadge presence={presence} lastActive />
+        ) : (
+          <Text style={[styles.status, lockedIn && styles.statusOn]} numberOfLines={1}>
+            {status}
+          </Text>
+        )}
       </View>
-      {/* Their rank hex, as on every board row. Absent when their season rank is on Private (0217)
-          — the status line already drops the rank words in that case. */}
-      {friend.tier && friend.division !== null ? (
-        <View>
-          <EquippedHexGlow size={22} loadout={resolved} />
-          <RankBadge tier={friend.tier} division={friend.division} size={22} />
-        </View>
-      ) : null}
-      {/* WS3 · the row's second quick action. The row itself still opens the profile and the flame
-          still nudges — this is only the shortcut that was missing, since "say something to them"
-          previously had no button anywhere in the app. */}
       <Pressable
         onPress={onMessage}
         hitSlop={8}
         accessibilityLabel={`Message ${friend.display_name}`}
-        style={[styles.quick, styles.quickMessage]}>
+        style={styles.quick}>
         <SocialGlyph name="chat" size={17} color={Colors.spaceDim} />
-      </Pressable>
-      <Pressable
-        onPress={onQuick}
-        hitSlop={8}
-        accessibilityLabel={lockedIn ? 'Lock in with them' : 'Nudge to lock in'}
-        style={[styles.quick, lockedIn ? styles.quickJoin : nudged && styles.quickDone]}>
-        {lockedIn ? (
-          <UiGlyph name="lock" size={17} color="#2A0F05" />
-        ) : nudged ? (
-          <UiGlyph name="check" size={17} color={Colors.gold} />
-        ) : (
-          <NavGlyph name="flame" size={17} color={Colors.navEmber} />
-        )}
       </Pressable>
     </Pressable>
   );
@@ -447,10 +402,6 @@ const styles = StyleSheet.create({
   seal: {
     marginLeft: 5,
   },
-  identity: {
-    fontSize: 11,
-    marginTop: 1,
-  },
   status: {
     fontFamily: Fonts.body,
     fontSize: 11,
@@ -467,19 +418,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.spacePanel2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  // Quieter than the flame beside it: the nudge is the row's primary act and two equally loud
-  // buttons would make the row ask a question instead of offering a shortcut.
-  quickMessage: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  quickJoin: {
-    backgroundColor: Colors.navEmber,
-  },
-  quickDone: {
-    backgroundColor: 'rgba(255,209,102,0.12)',
   },
   error: {
     fontFamily: Fonts.body,

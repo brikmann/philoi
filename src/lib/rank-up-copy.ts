@@ -22,10 +22,12 @@ export const RANK_UP_COPY: Record<RankTierName, { head: string; sub: string }> =
   bronze: { head: 'IGNITION.', sub: 'THE CLIMB HAS BEGUN.' },
   silver: { head: 'FORGED IN STEEL.', sub: 'THE EDGE IS YOURS.' },
   gold: { head: 'THE CROWN IS YOURS.', sub: 'EVERY LOCK-IN TURNS TO GOLD.' },
-  platinum: { head: 'INTO RARE AIR.', sub: 'FEW EVER CLIMB THIS HIGH.' },
+  // Was 'FEW EVER CLIMB THIS HIGH.' — a comparison with everyone else; a tier is your own belt.
+  platinum: { head: 'INTO RARE AIR.', sub: 'HOURS ON HOURS, ALL YOURS.' },
   diamond: { head: 'FORGED UNDER PRESSURE.', sub: 'THE MORTAL PEAK — ONE STEP FROM LEGEND.' },
   hero: { head: 'MORTAL LIMITS BROKEN.', sub: 'WELCOME TO THE REALM OF LEGEND.' },
-  titan: { head: 'THE EARTH TREMBLES.', sub: 'A TITAN WALKS AMONG THEM.' },
+  // Was 'A TITAN WALKS AMONG THEM.' — above other people, not further along your own road.
+  titan: { head: 'THE EARTH TREMBLES.', sub: 'YOU ARE TITAN NOW.' },
   // Divine (enum key `olympian`). Was 'YOU ENTER OLYMPUS.' / 'THE GODS MAKE ROOM.' — retired
   // with the tier's name for the same trademark reason, since a line naming Olympus is the same
   // claim the label was making.
@@ -42,7 +44,7 @@ export function rankUpCardTag(tier: RankTierName, isDivisionBump: boolean): { la
   if (isDivisionBump) return { label: 'DIVISION UP', icon: 'flame' };
   if (tier === 'primordial') return { label: 'PRIMORDIAL', icon: 'flame' };
   if (tier === 'hero') return { label: 'ASCENDED', icon: 'challenge' };
-  return { label: 'RANK UP', icon: null };
+  return { label: 'NEW TIER', icon: null };
 }
 
 // The DIVISION UP card's light two-liner (RANKUP_SPEC §9's intra-division bump) — deliberately NOT

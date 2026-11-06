@@ -8,7 +8,7 @@ const BACKER_RING = '#24170F';
 
 /**
  * Home §2 — WHO'S BACKING YOU (mock 318). The emotional core: people are rooting for you. Stacked
- * faces, "{N} friends cheered your grind this week", and a human line of the latest few.
+ * faces, "{N} friends cheered you on this week", and a human line of the latest few.
  *
  * It counts PEOPLE, never cheers — a friend who cheered five times is one friend backing you. There
  * is no total-cheers number on purpose; this card is warmth, not a vanity metric.
@@ -26,7 +26,7 @@ export function BackersCard({ backers }: { backers: Backer[] }) {
   const n = backers.length;
   const extra = n - 4;
   return (
-    <View style={styles.card} accessible accessibilityLabel={`${n} ${n === 1 ? 'friend' : 'friends'} cheered your grind this week`}>
+    <View style={styles.card} accessible accessibilityLabel={`${n} ${n === 1 ? 'friend' : 'friends'} cheered you on this week`}>
       <View style={styles.faces}>
         <FriendFaceStack people={backers} size={28} max={4} ringColor={BACKER_RING} />
         {extra > 0 ? (
@@ -39,7 +39,7 @@ export function BackersCard({ backers }: { backers: Backer[] }) {
         <Text style={styles.count}>
           {n === 1 ? backers[0].name.split(/\s+/)[0] : `${n} friends`}
         </Text>
-        {' cheered your grind this week'}
+        {' cheered you on this week'}
       </Text>
       <Text style={styles.detail} numberOfLines={2}>
         {backers

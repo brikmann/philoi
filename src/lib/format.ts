@@ -17,8 +17,11 @@ export function shortName(full: string): string {
 }
 
 export function formatSessionDuration(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.round((totalSeconds % 3600) / 60);
+  // Round to the minute FIRST, then split: rounding the remainder alone turned 15h 59m 40s into
+  // "15h 60m" (and 59m 40s into "60m") instead of carrying into the hour.
+  const total = Math.round(Math.max(0, totalSeconds) / 60);
+  const hours = Math.floor(total / 60);
+  const minutes = total % 60;
   if (hours > 0) return `${hours}h ${minutes}m`;
   return `${minutes}m`;
 }

@@ -332,7 +332,7 @@ export default function AgoraComposeScreen() {
       setWithAnthem(true);
       return;
     }
-    Alert.alert('No anthem yet', 'Pick your grind song on your identity card, then share it from here.', [
+    Alert.alert('No anthem yet', 'Pick your anthem on your identity card, then share it from here.', [
       { text: 'Not now', style: 'cancel' },
       { text: 'Set my anthem', onPress: () => router.push('/edit-identity') },
     ]);
@@ -424,16 +424,6 @@ export default function AgoraComposeScreen() {
     setLane(next);
     setLanePicker(false);
   }
-
-  // The reassurance line under the picker, naming whoever was chosen.
-  const promise = lane
-    ? lane.kind === 'campfire'
-      ? `Only ${lane.name}’s members see this & get the notification.`
-      : // Forests are open rooms (can_read_forest): anyone who opens one can read it, so say that.
-        `Anyone who opens ${lane.name} can read this; its members get the notification.`
-    : visibility === 'friends'
-      ? 'Only your friends see this & get the notification.'
-      : 'Anyone on Philoi can see this. Nobody gets a notification — it’s there for whoever looks.';
 
   return (
     <ScreenBackground>
@@ -585,7 +575,6 @@ export default function AgoraComposeScreen() {
             <AudienceOption
               icon="friends"
               label="Friends only"
-              sub="just the people you added"
               on={!lane && visibility === 'friends'}
               onPress={() => chooseSquare('friends')}
             />
@@ -602,7 +591,7 @@ export default function AgoraComposeScreen() {
               icon="forest"
               emoji={lane?.kind === 'forest' ? lane.emoji : null}
               label={lane?.kind === 'forest' ? lane.name : 'A forest'}
-              sub={lane?.kind === 'forest' ? 'everyone in the forest · change' : 'pick which'}
+              sub={lane?.kind === 'forest' ? 'anyone who opens it can read · change' : 'pick which'}
               on={lane?.kind === 'forest'}
               onPress={() => openLanePicker('forest')}
               chevron
@@ -614,12 +603,8 @@ export default function AgoraComposeScreen() {
               on={!lane && visibility === 'public'}
               onPress={() => chooseSquare('public')}
             />
-            <View style={styles.promiseRow}>
-              <Icon name="check" size={12} color="#39D98A" />
-              <Text style={styles.promise}>{promise} No algorithm — people only see what they chose.</Text>
-            </View>
-
-            <Text style={styles.note}>Comment-only · no likes.</Text>
+            {/* No caption under the picker (copy/declutter pass): the rows already say who sees
+                it, and a line explaining there's no algorithm or no likes was explaining an absence. */}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -762,7 +747,8 @@ function AudienceOption({
   /** The room's own emoji once one is picked — its creator chose it, so it wins over the glyph. */
   emoji?: string | null;
   label: string;
-  sub: string;
+  /** Omitted where the label says it all ("Friends only"). */
+  sub?: string;
   on: boolean;
   onPress: () => void;
   /** Opens a "pick which" sheet rather than choosing outright. */
@@ -774,15 +760,17 @@ function AudienceOption({
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ checked: on }}
-      accessibilityLabel={`${label}, ${sub}`}>
+      accessibilityLabel={sub ? `${label}, ${sub}` : label}>
       {emoji ? <Text style={styles.aoptIcon}>{emoji}</Text> : <Icon name={icon} size={19} color={Colors.ink} />}
       <View style={styles.flex}>
         <Text style={styles.aoptName} numberOfLines={1}>
           {label}
         </Text>
-        <Text style={styles.aoptSub} numberOfLines={1}>
-          {sub}
-        </Text>
+        {sub ? (
+          <Text style={styles.aoptSub} numberOfLines={1}>
+            {sub}
+          </Text>
+        ) : null}
       </View>
       {chevron && !on ? <Ionicons name="chevron-forward" size={14} color={Colors.textTertiary} /> : null}
       <View style={[styles.radio, on && styles.radioOn]}>{on ? <View style={styles.radioDot} /> : null}</View>
@@ -1087,28 +1075,6 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#39D98A',
-  },
-  promiseRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    marginTop: Spacing.one,
-  },
-  promise: {
-    flexShrink: 1,
-    textAlign: 'center',
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    lineHeight: 16,
-    color: '#39D98A',
-  },
-  note: {
-    textAlign: 'center',
-    fontFamily: Fonts.body,
-    fontSize: 10,
-    color: Colors.spaceFaint,
-    marginTop: Spacing.four,
   },
   scrim: {
     flex: 1,

@@ -52,7 +52,7 @@ export const RankUpShareCard = forwardRef<View, RankUpShareCardProps>(function R
   return (
     <ShareCardFrame
       ref={ref}
-      kick={isDivisionBump ? 'DIVISION UP' : 'RANKED UP'}
+      kick={isDivisionBump ? 'DIVISION UP' : 'NEW TIER'}
       kickColor={metal.inner}
       // The fan is the tier's metal at the celebration's own intensity — the card is the still of
       // the screen it was captured from, so it cannot be lit differently from it (mock 213).
@@ -78,7 +78,7 @@ export const RankUpShareCard = forwardRef<View, RankUpShareCardProps>(function R
       </View>
 
       <Text style={[styles.tierName, { color: metal.inner }]}>{formatRankTier(tier, division).toUpperCase()}</Text>
-      <Text style={styles.label}>{isDivisionBump ? 'moved up a division' : 'climbed a tier'}</Text>
+      <Text style={styles.label}>{isDivisionBump ? 'reached a new division' : 'reached a new tier'}</Text>
 
       {/* THE REWARD ROW (mock 171 card 4). A rank-up pays embers and a box; the box is the half
           worth naming on a card, because an object has a name a non-player understands and a

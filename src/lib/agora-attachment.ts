@@ -202,7 +202,7 @@ export function attachmentView(
       const tier = snap.tier as RankTierName | undefined;
       const metal = tier ? RANK_TIER_METAL[tier] : undefined;
       return {
-        title: tier ? formatRankTier(tier, snap.division ?? 1) : 'Ranked up',
+        title: tier ? formatRankTier(tier, snap.division ?? 1) : 'New tier',
         subtitle: 'Global rank · career-long, never resets',
         eyebrow: 'STANDING',
         eyebrowColor: metal?.text ?? Colors.muted,

@@ -182,13 +182,13 @@ export default function InterestsScreen() {
   return (
     <Screen padded={false} style={styles.container}>
       <View style={styles.spineRow}>
-        <FirstRunSpine total={total} filled={step} label={`YOUR GRIND ${step} / ${total}`} />
+        <FirstRunSpine total={total} filled={step} label={`SETUP · ${step} of ${total}`} />
       </View>
 
       {step === 1 && (
         <>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            <Text style={styles.h}>What are you here to grind?</Text>
+            <Text style={styles.h}>What are you into?</Text>
             <Text style={styles.sub}>Pick what you care about — we&apos;ll match you with people chasing the same things.</Text>
 
             <Text style={styles.sec}>Disciplines</Text>
@@ -258,7 +258,7 @@ export default function InterestsScreen() {
               <View style={styles.match}>
                 <Icon name="compass" size={16} color={Colors.green} />
                 <Text style={styles.matchText}>
-                  <Text style={styles.matchStrong}>{picked} selected.</Text> We&apos;ll suggest forests &amp; grind-alikes from these.
+                  <Text style={styles.matchStrong}>{picked} selected</Text>
                 </Text>
               </View>
             ) : null}
@@ -286,7 +286,7 @@ export default function InterestsScreen() {
         <>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
             <Text style={styles.h}>What do you want out of philoi?</Text>
-            <Text style={styles.sub}>Your intent, not a locked-in target. You can change it anytime.</Text>
+            <Text style={styles.sub}>You can change this anytime.</Text>
             <Text style={styles.sec}>I&apos;m here to…</Text>
             {byKind.goal.map((g) => (
               <GoalRow key={g.key} goal={g} selected={goals.includes(g.key)} onPress={() => setGoals((s) => toggle(s, g.key))} />
@@ -376,7 +376,7 @@ function Reveal({ university, onDone }: { university: string | null; onDone: () 
       const s = await setMyMatchSettings({ discoverable: true });
       setDiscoverable(s.discoverable);
     } catch (e) {
-      setNote(getErrorMessage(e, "Couldn't turn matching on — you can from Grind-alikes later."));
+      setNote(getErrorMessage(e, "Couldn't turn matching on — you can from People like you later."));
     } finally {
       setEnabling(false);
     }
@@ -479,14 +479,14 @@ function Reveal({ university, onDone }: { university: string | null; onDone: () 
             <Text style={styles.optInTitle}>Turn on matching to see them</Text>
             <Text style={styles.optInBody}>
               You&apos;ll show up for people {school ? `at ${school} ` : ''}who turned it on too — and only them. Off by default; change it
-              anytime in Grind-alikes.
+              anytime in People like you.
             </Text>
             <PrimaryButton label="Turn on matching" loading={enabling} onPress={enableMatching} />
           </View>
         ) : !matches ? (
           <ActivityIndicator color={Colors.navEmber} style={styles.inlineSpin} />
         ) : matches.length === 0 ? (
-          <Text style={styles.none}>No one lines up yet — you&apos;re early. New people join every day; check Grind-alikes soon.</Text>
+          <Text style={styles.none}>No one lines up yet — you&apos;re early. New people join every day; check People like you soon.</Text>
         ) : (
           matches.map((m) => {
             const on = pickedPeople.includes(m.user_id);

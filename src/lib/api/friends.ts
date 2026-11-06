@@ -1,5 +1,4 @@
 import { track } from '@/lib/analytics';
-import { formatRankTier } from '@/lib/rank-tiers';
 import { supabase } from '@/lib/supabase';
 import type { PingResult, RankTierName } from '@/types/database';
 
@@ -17,7 +16,7 @@ export type Friend = {
   tier: RankTierName | null;
   division: number | null;
   current_streak: number;
-  /** Their last real lock-in — for the "going cold Nd" status line. Null = never locked in. */
+  /** Their last real lock-in — for the "Last locked in Nd ago" status line. Null = never locked in. */
   last_lockin_at: string | null;
   shared_circle_id: string | null;
   shared_circle_name: string | null;
@@ -29,20 +28,21 @@ export async function fetchMyFriends(): Promise<Friend[]> {
   return data ?? [];
 }
 
-// The row/sheet status line (design-mocks/21): "Locked in now · Gym" while active, else the rank
-// paired with streak state — "5-day streak", "going cold 3d" (lapsed but has locked in before),
-// or "getting started" (never has). goalLabel is the live goal when locked in, else null.
+// The row/sheet status line (design-mocks/21): "Locked in now · Gym" while active, else the streak
+// or when they last locked in — "5-day streak", "Last locked in 3d ago", "Getting started".
+// goalLabel is the live goal when locked in, else null.
+//
+// No rank, and no "going cold" (copy/declutter pass): a friend's tier is a personal belt, not a
+// comparison you're shown by default (that lives in opt-in Standings), and a friend's quiet week is
+// not something to guilt either of you about.
 export function friendStatusLine(friend: Friend, goalLabel: string | null): string {
-  // 0217 · a friend on Private has no rank to print — the streak half stands on its own.
-  const rank = friend.tier && friend.division !== null ? formatRankTier(friend.tier, friend.division) : null;
-  const withRank = (rest: string) => (rank ? `${rank} · ${rest}` : rest.charAt(0).toUpperCase() + rest.slice(1));
   if (goalLabel) return `Locked in now · ${goalLabel}`;
-  if (friend.current_streak > 0) return withRank(`${friend.current_streak}-day streak`);
+  if (friend.current_streak > 0) return `${friend.current_streak}-day streak`;
   if (friend.last_lockin_at) {
-    const days = Math.max(1, Math.floor((Date.now() - new Date(friend.last_lockin_at).getTime()) / DAY_MS));
-    return withRank(`going cold ${days}d`);
+    const days = Math.floor((Date.now() - new Date(friend.last_lockin_at).getTime()) / DAY_MS);
+    return days < 1 ? 'Locked in today' : days === 1 ? 'Last locked in yesterday' : `Last locked in ${days}d ago`;
   }
-  return withRank('getting started');
+  return 'Getting started';
 }
 
 /**

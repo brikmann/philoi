@@ -21,7 +21,7 @@ export function PeopleWeekCard({ week, centered = false }: { week: PeopleWeek; c
       <Text style={styles.kick}>Your people, this week</Text>
       <Text style={[styles.big, centered && styles.bigCentered]}>{formatPeopleHours(week.thisWeekSeconds)}</Text>
       <Text style={[styles.sub, centered && styles.textCentered]}>
-        {quiet ? 'Nobody’s locked in yet this week — start it off.' : 'locked in together across your friends & clubs'}
+        {quiet ? 'Nobody’s locked in yet this week — start it off.' : 'locked in together'}
         {delta ? (
           <Text style={styles.delta}>
             {' — '}

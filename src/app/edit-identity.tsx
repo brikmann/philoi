@@ -296,10 +296,10 @@ export default function EditIdentityScreen() {
               style={[styles.card, styles.grindRow]}
               onPress={() => router.push({ pathname: '/interests', params: { edit: '1' } } as never)}
               accessibilityRole="button"
-              accessibilityLabel="Edit what you're here to grind">
+              accessibilityLabel="Edit what you're into">
               <View style={styles.flex}>
-                <Text style={styles.k}>What you&apos;re here to grind</Text>
-                <Text style={styles.grindSub}>Disciplines, interest hubs &amp; goals — what grind-alikes match you on</Text>
+                <Text style={styles.k}>What you&apos;re into</Text>
+                <Text style={styles.grindSub}>Disciplines, interests &amp; goals</Text>
               </View>
               <UiGlyph name="forward" size={14} color={Colors.spaceDim} />
             </Pressable>

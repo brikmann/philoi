@@ -492,7 +492,7 @@ export default function ForestScreen() {
                     {isMember ? (
                       <Pressable style={styles.composer} onPress={compose} accessibilityRole="button" accessibilityLabel="Post to this forest">
                         <ForestAvatar name={profile?.display_name ?? ''} url={profile?.avatar_url ?? null} size={28} />
-                        <Text style={styles.composerHint}>Drop your grind here…</Text>
+                        <Text style={styles.composerHint}>Share something…</Text>
                         <UiGlyph name="edit" size={16} color={Colors.navEmber2} />
                       </Pressable>
                     ) : null}

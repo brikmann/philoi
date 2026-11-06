@@ -17,7 +17,7 @@ import type { GrindAlike } from '@/types/social';
  */
 export function PeopleLikeYou({
   limit = 3,
-  lead = 'People who grind like you',
+  lead = 'People like you',
 }: {
   limit?: number;
   /** The block's own heading; null when the host screen already titles the section (Discover). */
@@ -57,7 +57,7 @@ export function PeopleLikeYou({
     return (
       <Pressable style={styles.invite} onPress={() => router.push('/grind-alikes' as never)} accessibilityRole="button">
         <Icon name="compass" size={16} color={Colors.legend} />
-        <Text style={styles.inviteText}>Find people who grind like you</Text>
+        <Text style={styles.inviteText}>Find people like you</Text>
         <Icon name="plus" size={14} color={Colors.spaceDim} />
       </Pressable>
     );

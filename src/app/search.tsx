@@ -193,11 +193,11 @@ export default function SearchTab() {
               style={styles.ga}
               onPress={() => router.push('/grind-alikes' as never)}
               accessibilityRole="button"
-              accessibilityLabel="Find your grind-alikes">
+              accessibilityLabel="Find people like you">
               <IconText icon="compass" style={styles.gaTitle}>
-                Grind-alikes
+                People like you
               </IconText>
-              <Text style={styles.gaBody}>People who lock in like you — same mix, goals, schedule.</Text>
+              <Text style={styles.gaBody}>Students who lock in like you</Text>
               <Text style={styles.gaGo}>Find your people →</Text>
             </Pressable>
 

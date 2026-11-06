@@ -33,7 +33,6 @@ import {
 } from '@/lib/api/reel-challenge';
 import { isSharedPost } from '@/lib/api/shared-post';
 import { formatRelativeTime, formatSessionDuration } from '@/lib/format';
-import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
 import { getRewardPreferencesSync } from '@/lib/reward-settings';
 import { openPostedLink } from '@/lib/share-link';
 import type { AgoraItem } from '@/types/database';
@@ -596,7 +595,6 @@ function NiceOnes({ item, onSend }: { item: AgoraItem; onSend: Props['onNiceComm
 
 function AuthorRow({ item, loadout, active, mine }: { item: AgoraItem; loadout: PublicLoadout; active: boolean; mine: boolean }) {
   const router = useRouter();
-  const tier = item.rank_tier && RANK_TIER_METAL[item.rank_tier] ? item.rank_tier : null;
   const tag = audienceTag(item);
 
   function openAuthor() {
@@ -616,24 +614,16 @@ function AuthorRow({ item, loadout, active, mine }: { item: AgoraItem; loadout: 
         motion={active ? 'full' : 'reduced'}
       />
       <View style={styles.authorText}>
-        {/* The whole name, wrapping to a second line rather than clipping. The handle gets its own
-            line so a long name never has to share its width with it. */}
+        {/* name · patron · program, plus their one flair (copy/declutter pass) — the same author line
+            as the list card. No rank: a tier is a personal belt, compared only in opt-in Standings.
+            No handle: the profile behind the tap has it. The name wraps rather than clipping. */}
         <BurningName userId={item.user_id} style={styles.name} numberOfLines={2} suffix={<HouseSealInline userId={item.user_id} size={14} />}>
           {item.display_name}
         </BurningName>
-        {item.handle ? (
-          <Text style={styles.handle} numberOfLines={1}>
-            @{item.handle}
-          </Text>
-        ) : null}
         <PublicTitle loadout={loadout} compact />
         <IdentityLine userId={item.user_id} showSchool={false} style={styles.identity} />
         <Text style={styles.when} numberOfLines={1}>
           {formatRelativeTime(item.created_at)}
-          {/* Rank is EARNED — drawn in its own metal, never in a bought colour. */}
-          {tier ? (
-            <Text style={{ color: RANK_TIER_METAL[tier].text }}> · {formatRankTier(tier, item.rank_division ?? 1)}</Text>
-          ) : null}
         </Text>
       </View>
       {/* Mock 326's `.tag`: who it was shared with, at the row's right end on every page. */}
@@ -976,12 +966,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bodyBold,
     fontSize: 14,
     color: '#FFFFFF',
-  },
-  handle: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.muted,
-    marginTop: 1,
   },
   identity: {
     marginTop: 1,

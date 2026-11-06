@@ -1,42 +1,29 @@
 import { useFocusEffect, usePathname, useRouter } from 'expo-router';
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useNavDrawer } from '@/components/nav/app-drawer';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
-import { PhiloiIcon } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useNotifications } from '@/hooks/use-notifications';
-import { fetchMyDmThreads } from '@/lib/api/dm';
 
-// THE TOP-RIGHT GLOBALS (mocks 301/302): brand left; Search · Shop · Messages · Notifications · Menu
-// right, on every tab. Search is here rather than inside Social so it's findable from anywhere
-// (pre-submission fix E11) — it pushes its own screen. The drawer behind ☰ holds everything that doesn't earn a slot on the bottom bar — the
-// Shop is there too, but it's one tap from anywhere now rather than two.
+// THE TOP-RIGHT GLOBALS (mocks 301/302, trimmed by the copy/declutter pass): brand left;
+// Search · Notifications · Menu right, on every tab — three, never more. Search is here rather than
+// inside Social so it's findable from anywhere (pre-submission fix E11) — it pushes its own screen.
+// The Shop sits in the drawer behind ☰ (Rewards); messages live in the Chat tab, whose slot on the
+// bottom bar carries the unread count the old paper-plane glyph used to.
 
 export function AppTopBar({ title, right }: { title?: string; right?: ReactNode }) {
   const router = useRouter();
   const onSearch = usePathname() === '/search';
   const { open } = useNavDrawer();
   const { unread, refreshCount } = useNotifications();
-  const [dmUnread, setDmUnread] = useState(0);
 
-  // Counts refresh on focus: tabs stay mounted (frozen) for the life of the app, so a mount-only
+  // The count refreshes on focus: tabs stay mounted (frozen) for the life of the app, so a mount-only
   // read would show this morning's number all day.
   useFocusEffect(
     useCallback(() => {
-      let live = true;
       refreshCount();
-      fetchMyDmThreads()
-        .then((threads) => {
-          if (live) setDmUnread(threads.reduce((n, t) => n + (t.unread ?? 0), 0));
-        })
-        .catch(() => {
-          // A badge is flavour — a failed read just shows no count.
-        });
-      return () => {
-        live = false;
-      };
     }, [refreshCount])
   );
 
@@ -55,8 +42,6 @@ export function AppTopBar({ title, right }: { title?: string; right?: ReactNode 
       <View style={styles.actions}>
         {right}
         {onSearch ? null : <GlobalButton glyph="search" label="Search" onPress={() => router.push('/search')} />}
-        <GlobalButton icon={<PhiloiIcon name="shop" size={20} color={Colors.ink} />} label="Shop" onPress={() => router.push('/shop')} />
-        <GlobalButton glyph="plane" label="Messages" badge={dmUnread} onPress={() => router.push('/messages')} />
         <GlobalButton glyph="bell" label="Notifications" badge={unread} onPress={() => router.push('/notifications')} />
         <GlobalButton glyph="menu" label="Menu" onPress={open} />
       </View>
@@ -66,14 +51,11 @@ export function AppTopBar({ title, right }: { title?: string; right?: ReactNode 
 
 function GlobalButton({
   glyph,
-  icon,
   label,
   badge = 0,
   onPress,
 }: {
-  glyph?: NavGlyphName;
-  /** For a global with no NavGlyph — the Shop wears the drawer's own PhiloiIcon, so the two match. */
-  icon?: ReactNode;
+  glyph: NavGlyphName;
   label: string;
   badge?: number;
   onPress: () => void;
@@ -85,7 +67,7 @@ function GlobalButton({
       style={styles.btn}
       accessibilityRole="button"
       accessibilityLabel={badge > 0 ? `${label}, ${badge} unread` : label}>
-      {icon ?? (glyph ? <NavGlyph name={glyph} size={19} color={Colors.ink} /> : null)}
+      <NavGlyph name={glyph} size={19} color={Colors.ink} />
       {badge > 0 && (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>

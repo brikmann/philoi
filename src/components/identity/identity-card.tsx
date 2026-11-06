@@ -37,7 +37,7 @@ function AnthemChip({ anthem }: { anthem: Anthem }) {
           {anthem.title}
         </Text>
         <Text style={styles.anthemSub} numberOfLines={1}>
-          {anthem.artist ? `${anthem.artist} · ` : ''}my grind song
+          {anthem.artist ? `${anthem.artist} · ` : ''}my anthem
         </Text>
       </View>
       {url ? <Ionicons name="open-outline" size={13} color={Colors.textTertiary} /> : null}

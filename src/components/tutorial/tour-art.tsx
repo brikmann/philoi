@@ -250,7 +250,7 @@ export function CosmeticHero({ kind, name }: { kind: CosmeticKind; name: string 
         <View style={styles.hero}>
           <ItemArt item={it} size={84} motion="on" />
           <IconText icon={kind === 'sfx' ? 'play' : 'music'} style={styles.heroLabel}>
-            {kind === 'sfx' ? 'plays as you lock in, and as you finish' : 'plays while you grind'}
+            {kind === 'sfx' ? 'plays as you lock in, and as you finish' : 'plays while you lock in'}
           </IconText>
         </View>
       );

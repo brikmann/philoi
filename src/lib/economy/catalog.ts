@@ -1123,7 +1123,7 @@ const MEME_DROPS: CatalogItem[] = [
     art: { kind: 'banner', from: '#0A1C12', to: '#5BCB7A' } }),
   item({ id: 'banner-meme-caught-in-4k', name: 'Caught in 4K', type: 'BANNER', rarity: 'legendary', acquisition: 'drop',
     howToGet: 'A Meme Monday drop — buyable only during its week.',
-    lore: 'Your grind, immortalized, as a gloriously dorky hand-drawn doodle of the lock-in screen.',
+    lore: 'Your lock-in, immortalized, as a gloriously dorky hand-drawn doodle of the lock-in screen.',
     art: { kind: 'banner', from: '#10131A', to: '#46E0E0' } }),
   // Mock 321. Blacked out on purpose: the blood in the skull's forehead is the only colour on it, so
   // `to` is the cold graphite the clocks and skull are drawn in, not a hue.

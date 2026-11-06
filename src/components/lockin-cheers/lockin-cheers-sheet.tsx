@@ -313,7 +313,7 @@ function ThreadView({
       <Text style={styles.sub}>
         {closed
           ? 'Neither of you is locked in now, so this thread closed. Nothing here is kept.'
-          : 'A quick back-and-forth while one of you grinds. Pick a preset or type a line.'}
+          : 'A quick back-and-forth while one of you is locked in. Pick a preset or type a line.'}
       </Text>
 
       {!closed && (

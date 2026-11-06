@@ -47,7 +47,9 @@ type NavGroup = { title: string; rows: NavRow[] };
 // THE MENU BEHIND ☰ (nav restructure, mock 301). Home · Search · Lock In · Leaderboard · Profile
 // are on the bottom bar now, so the drawer holds everything that does not earn a permanent slot —
 // mock 301's list, plus the destinations the old Play/Social groups carried that have no other
-// home (Friends, Challenges, Grind-alikes, Notifications, history), so nothing is orphaned by the move.
+// home (Friends, Challenges, People like you, history), so nothing is orphaned by the move.
+// Notifications left the drawer in the declutter pass: the bell is on every tab's top bar, so a second
+// door here was the duplicate path.
 const GROUPS: NavGroup[] = [
   {
     title: 'Social',
@@ -60,10 +62,11 @@ const GROUPS: NavGroup[] = [
         route: '/people',
         match: ['/people', '/friend-profile'],
       },
-      // Grind-alikes (0275): where you meet people you don't know yet. Also on Search and Profile.
+      // People like you (0275's matching; the route keeps its old /grind-alikes name for installed
+      // builds and pushes): where you meet people you don't know yet. Also on Search and Profile.
       {
         key: 'grind-alikes',
-        label: 'Grind-alikes',
+        label: 'People like you',
         icon: 'members',
         route: '/grind-alikes',
         match: ['/grind-alikes', '/grind-alike'],
@@ -86,9 +89,6 @@ const GROUPS: NavGroup[] = [
   {
     title: 'You',
     rows: [
-      // A second door to the bell's activity feed (ui_pass2 §6) — cheers, replies, rank, unlocks —
-      // so it's findable from the menu, not only from the top-right glyph.
-      { key: 'notifications', label: 'Notifications', icon: 'bell', route: '/notifications' },
       { key: 'history', label: 'Lock-in history', icon: 'leaderboards', route: '/lock-in-history' },
       { key: 'fitness-sync', label: 'Fitness trackers', icon: 'sliders', route: '/fitness-trackers' },
       { key: 'cindy', label: 'Cindy', icon: 'agora', route: '/cindy' },

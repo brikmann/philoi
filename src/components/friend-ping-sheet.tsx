@@ -59,7 +59,7 @@ export function FriendPingSheet({
   onViewChallenge,
   onChallengeGroup,
 }: FriendPingSheetProps) {
-  // Locked-in status uses the live goal; otherwise the shared rank + streak/cold line.
+  // Locked-in status uses the live goal; otherwise the streak / last-locked-in line (no rank).
   const status = friend ? friendStatusLine(friend, lockedIn ? (goalLabel ?? 'a session') : null) : '';
 
   return (

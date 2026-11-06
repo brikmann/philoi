@@ -47,7 +47,7 @@ export function MatchSettingsSection({ settings, busy, onChange, hideDiscoverabl
               <NavGlyph name="search" size={17} color={Colors.legend} />
             </RowIcon>
             <View style={styles.rowBody}>
-              <Text style={styles.rowTitle}>Show me in Grind-alikes</Text>
+              <Text style={styles.rowTitle}>Show me in People like you</Text>
               <Text style={styles.rowSub}>Off = you match no one, see no one</Text>
             </View>
             <Toggle value={settings.discoverable} disabled={busy} onValueChange={(v) => onChange({ discoverable: v })} />
@@ -111,7 +111,7 @@ export function MatchOptInCard({ busy, onEnable }: { busy: boolean; onEnable: (o
     <View style={styles.optIn}>
       <View style={styles.optInTop}>
         <View style={styles.rowBody}>
-          <Text style={styles.optInTitle}>Show me in Grind-alikes</Text>
+          <Text style={styles.optInTitle}>Show me in People like you</Text>
           <Text style={styles.rowSub}>It&apos;s off by default. Off = you match no one, see no one.</Text>
         </View>
         <Toggle value={false} disabled={busy} onValueChange={onEnable} />

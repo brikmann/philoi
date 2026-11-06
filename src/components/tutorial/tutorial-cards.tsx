@@ -170,7 +170,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
     },
     {
       key: 'ranks',
-      title: 'Climb the ranks',
+      title: 'Earn your tier',
       // 🔴 COPY + EMBLEMS ONLY. Rank is a lifetime climb (0230) — no decay, no seasonal reset. Only
       // the Flame Pass is seasonal, so that is the one thing this card may say starts over.
       cindy: [
@@ -187,7 +187,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
       key: 'profile',
       title: 'Your profile',
       cindy: [
-        'Your profile is your Trophy Hall. Earn a discipline relic for each thing you grind — and each one levels up (α → Ω) the more you show up. There is even a secret one to find. 🔒',
+        'Your profile is your Trophy Hall. Earn a discipline relic for each thing you do — and each one levels up (α → Ω) the more you show up. There is even a secret one to find. 🔒',
       ],
       steps: [
         <MiniScreen key="p">
@@ -424,7 +424,7 @@ export function tutorialCards(displayName: string | null, handle: string | null)
         <MiniScreen key="ag">
           <MiniHeader nav="agora" title="The Agora" />
           <View style={styles.post}>
-            <MiniRow glyph="A" title="Ava · ranked up" sub="Platinum III → Diamond I · 2m" />
+            <MiniRow glyph="A" title="Ava · reached Diamond I" sub="a new tier · 2m" />
             <View style={styles.reacts}>
               <MiniChip icon="comment" label="comment" color={Colors.muted} />
               <MiniChip icon="cheer" label="cheered" color={Colors.amber} />
@@ -779,7 +779,7 @@ const COSMETICS: CosmeticSpec[] = [
   {
     name: 'Title',
     kind: 'title',
-    blurb: 'A tag under your name everyone sees — flex your grind.',
+    blurb: 'A tag under your name everyone sees.',
     cindy: 'Titles sit under your name for everyone to see.',
   },
   {
@@ -791,8 +791,8 @@ const COSMETICS: CosmeticSpec[] = [
   {
     name: 'Audio',
     kind: 'audio',
-    blurb: 'A background track that plays while you grind — set the vibe.',
-    cindy: 'Audio sets your background track while you grind.',
+    blurb: 'A background track that plays while you lock in — set the vibe.',
+    cindy: 'Audio sets your background track while you lock in.',
   },
   {
     name: 'Card',

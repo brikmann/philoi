@@ -13,6 +13,9 @@ import { formatRankTier, RANK_TIER_COLOR } from '@/lib/rank-tiers';
  *
  * Only good news gets a chip. A slower week shows the number with no "▼" beside it — the headline
  * stays encouraging (weekHeadline), and there's no deficit to stare at.
+ *
+ * The tier tile is a belt, not a seat (copy/declutter pass): "Diamond III · ▲ reached" the week you
+ * reach it, the bare tier otherwise — never "climbed" or "holding", which read as a place on a board.
  */
 export function YourWeekCard({ week }: { week: MyWeek }) {
   const headline = weekHeadline(week);
@@ -41,9 +44,8 @@ export function YourWeekCard({ week }: { week: MyWeek }) {
         <Tile
           value={formatRankTier(week.tier, week.division)}
           valueColor={RANK_TIER_COLOR[week.tier]}
-          chip={week.climbedThisWeek ? '▲ climbed' : null}
-          quiet={week.climbedThisWeek ? null : 'holding'}
-          label="RANK"
+          chip={week.climbedThisWeek ? '▲ reached' : null}
+          label="TIER"
         />
       </View>
 

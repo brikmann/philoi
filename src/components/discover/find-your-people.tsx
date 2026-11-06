@@ -93,7 +93,6 @@ export function FindYourPeople({ onOpenFeed }: { onOpenFeed: () => void }) {
           style={({ pressed }) => [styles.feedDoor, pressed && styles.pressed]}>
           <View style={styles.feedText}>
             <Text style={styles.feedTitle}>See what people are posting</Text>
-            <Text style={styles.feedSub}>Friends &amp; Everyone — newest first, comments only</Text>
           </View>
           <Icon name="forward" size={14} color={Colors.spaceDim} />
         </Pressable>

@@ -273,7 +273,7 @@ export function ChatComposer({
     const row = await fetchProfileIdentity(userId).catch(() => null);
     const anthem = row?.anthem?.title ? row.anthem : null;
     if (!anthem) {
-      Alert.alert('No anthem yet', 'Pick your grind song on your identity card, then share it from here.', [
+      Alert.alert('No anthem yet', 'Pick your anthem on your identity card, then share it from here.', [
         { text: 'Not now', style: 'cancel' },
         { text: 'Set my anthem', onPress: () => router.push('/edit-identity') },
       ]);

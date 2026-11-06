@@ -9,6 +9,7 @@ import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import { fetchMyPlacements } from '@/lib/api/leaderboard-social';
 import { rankVisibilityOf } from '@/lib/api/privacy';
 import { useAuth } from '@/lib/auth/auth-context';
+import { competitionOptedIn } from '@/lib/competition';
 import { getSeenPlacements, setSeenPlacements } from '@/lib/placement-watch';
 import type { PlacementScope } from '@/types/database';
 
@@ -32,16 +33,22 @@ const SCOPE_GLYPH: Record<PlacementScope, IconName> = { friends: 'friends', uni:
 // would just be the same comparison wearing three labels. Private: nothing at all, not even the
 // fetch. Their own tier ladder above this card is the whole story for them.
 //
+// AND IT IS OPT-IN (connection-first; copy/declutter pass). Where you stand against other people is
+// competition, which lives behind "Show me global standings" (0289's `competition` switch, off by
+// default). Off, this card renders nothing and fetches nothing — a payout screen celebrates what you
+// did, not where it put you. The dial above still decides which rows an opted-in person sees.
+//
 // `prominent` (the lock-in done screen): the boards side by side as three SPOTS — a big #N each —
 // on the space panel, instead of three thin rows. The payout screen keeps the compact list.
 export function PlacementMove({ style, prominent = false }: { style?: StyleProp<ViewStyle>; prominent?: boolean }) {
   const { session, profile } = useAuth();
   const userId = session?.user.id ?? null;
   const dial = rankVisibilityOf(profile);
+  const competing = competitionOptedIn(profile);
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
-    if (!userId || dial === 'private') return;
+    if (!userId || !competing || dial === 'private') return;
     const scopes: PlacementScope[] = dial === 'friends' ? ['friends'] : SCOPE_ORDER;
     let cancelled = false;
     (async () => {
@@ -69,9 +76,9 @@ export function PlacementMove({ style, prominent = false }: { style?: StyleProp<
     return () => {
       cancelled = true;
     };
-  }, [userId, dial]);
+  }, [userId, dial, competing]);
 
-  if (!rows || dial === 'private') return null;
+  if (!rows || !competing || dial === 'private') return null;
   const anyClimb = rows.some((r) => r.seen !== null && r.current < r.seen);
   const allHeld = rows.every((r) => r.seen !== null && r.current === r.seen);
   const kick = anyClimb ? 'You climbed' : allHeld ? 'Holding your spot' : 'Where you stand';

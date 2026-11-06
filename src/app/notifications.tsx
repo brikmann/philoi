@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useMemo, type ReactNode } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -12,6 +12,8 @@ import { Screen } from '@/components/ui/screen';
 import { SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useNotifications } from '@/hooks/use-notifications';
+import { useAuth } from '@/lib/auth/auth-context';
+import { competitionOptedIn } from '@/lib/competition';
 import { getItem } from '@/lib/economy/catalog';
 import { formatRelativeTime } from '@/lib/format';
 import { RANK_TIER_METAL } from '@/lib/rank-tiers';
@@ -22,10 +24,21 @@ import type { NotificationEvent, NotificationImageShape, RankTierName } from '@/
 // Opening it marks everything read — the badge is "there is something you haven't looked at", and
 // you are now looking at it. Per-row read state would mean a list of individually-dismissable
 // items, which is an inbox; this is an activity log.
+//
+// Standing rows ("You're #9 of 9") are competition, which is opt-in (0289). The server stopped
+// writing them for anyone who hasn't opted in, but the rows written before that still sit in the
+// log — so they only draw for someone who has turned "Show me global standings" on.
+const STANDING_TYPES = new Set(['daily_placement', 'season_ending']);
 
 export default function NotificationsScreen() {
   const router = useRouter();
-  const { items, loading, error, refreshItems, markAllRead } = useNotifications();
+  const { items: allItems, loading, error, refreshItems, markAllRead } = useNotifications();
+  const { profile } = useAuth();
+  const competing = competitionOptedIn(profile);
+  const items = useMemo(
+    () => (competing ? allItems : allItems.filter((n) => !STANDING_TYPES.has(n.type))),
+    [allItems, competing]
+  );
 
   useEffect(() => {
     // Load and clear the badge together. markAllRead refetches, so this is one round trip, not two.

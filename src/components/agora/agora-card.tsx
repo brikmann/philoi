@@ -23,7 +23,6 @@ import { agoraPhotoUrl } from '@/lib/api/agora';
 import { itemVideo } from '@/lib/api/agora-video';
 import { AgoraVideoTile } from '@/components/agora/agora-video-tile';
 import { formatRelativeTime } from '@/lib/format';
-import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
 import { openPostedLink } from '@/lib/share-link';
 import type { AgoraItem } from '@/types/database';
 
@@ -53,16 +52,6 @@ import type { AgoraItem } from '@/types/database';
 // no extra round trip; only the clip THUMBNAILS are fetched, and only because their signed URLs
 // expire and their access is re-checked per viewer.
 
-/** "Hero II", tinted with its own metal. Null for anyone who hasn't ranked yet. */
-function rankLabel(item: AgoraItem): { label: string; color: string } | null {
-  const tier = item.rank_tier;
-  if (!tier || !RANK_TIER_METAL[tier]) return null;
-  return {
-    label: formatRankTier(tier, item.rank_division ?? 1),
-    color: RANK_TIER_METAL[tier].text,
-  };
-}
-
 const AVATAR = 38;
 
 type Props = {
@@ -78,7 +67,6 @@ function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
   const [photoFailed, setPhotoFailed] = useState(false);
 
   const attachments = itemAttachments(item);
-  const rank = rankLabel(item);
   const photo = photoFailed ? null : agoraPhotoUrl(item.photo_path);
   // 0273 · a session the done screen posted itself. Its first photo rides in photo_path like any
   // post; the rest are frozen into the lockin snapshot, and all of them draw together below.
@@ -123,29 +111,17 @@ function AgoraCardInner({ item, loadout, onComment, onMore }: Props) {
         </Pressable>
 
         <Pressable style={styles.headText} onPress={openAuthor} accessibilityRole="button">
-          {/* The whole name, wrapping rather than clipping; the house seal sits with it (mock 288),
-              the handle on its own line so a long name never shares its width. */}
+          {/* The author line is name · patron · program, plus their one flair (copy/declutter pass).
+              No rank — a tier is a personal belt, compared only in opt-in Standings — and no handle
+              or campus pill: the profile behind the tap carries both. The house seal stays with the
+              name (mock 288); the name wraps rather than clipping. */}
           <BurningName userId={item.user_id} style={styles.name} numberOfLines={2} suffix={<HouseSealInline userId={item.user_id} size={14} />}>
             {item.display_name}
           </BurningName>
-          {item.handle ? (
-            <Text style={styles.handle} numberOfLines={1}>
-              @{item.handle}
-            </Text>
-          ) : null}
           <PublicTitle loadout={loadout} compact />
-          {/* House · program only — the campus pill below already names the school. */}
-          <IdentityLine userId={item.user_id} showSchool={false} style={styles.identity} />
           <View style={styles.metaRow}>
+            <IdentityLine userId={item.user_id} showSchool={false} style={styles.identity} />
             <Text style={styles.time}>{formatRelativeTime(item.created_at)}</Text>
-            {rank ? <Text style={[styles.rank, { color: rank.color }]}>· {rank.label}</Text> : null}
-            {item.university ? (
-              <View style={styles.uniPill}>
-                <Text style={styles.uniPillText} numberOfLines={1}>
-                  {item.university}
-                </Text>
-              </View>
-            ) : null}
           </View>
         </Pressable>
 
@@ -512,13 +488,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.ink,
   },
-  handle: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.textTertiary,
-  },
   identity: {
-    marginTop: 1,
+    flexShrink: 1,
   },
   metaRow: {
     flexDirection: 'row',
@@ -530,22 +501,6 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.body,
     fontSize: 10.5,
     color: Colors.textTertiary,
-  },
-  rank: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 10.5,
-  },
-  uniPill: {
-    flexShrink: 1,
-    borderRadius: Radius.pill,
-    paddingHorizontal: 7,
-    paddingVertical: 1.5,
-    backgroundColor: Colors.selectedBg,
-  },
-  uniPillText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 9,
-    color: Colors.sky,
   },
   attach: {
     flexDirection: 'row',

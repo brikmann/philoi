@@ -117,17 +117,17 @@ export default function GrindAlikesScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safeArea}>
-      <SpaceHeader title="Who grinds like you" />
+      <SpaceHeader title="People like you" />
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={Colors.navEmber} />}>
         <Text style={styles.intro}>
-          People whose lock-in habits, goals and field line up with yours. Not a ranking — a way to find your people.
+          People whose lock-in habits, goals and field line up with yours.
         </Text>
 
         {settingsFailed ? (
           <SoftState
-            title="Grind-alikes is still warming up"
+            title="People like you is still warming up"
             sub="We couldn't reach matchmaking just now. Check back soon."
             onRetry={() => setSettingsKey((k) => k + 1)}
           />
@@ -148,7 +148,7 @@ export default function GrindAlikesScreen() {
                 {shelfFailed ? (
                   <SoftState
                     title="No shelf right now"
-                    sub="We couldn't load your grind-alikes. Pull down to try again."
+                    sub="We couldn't load your matches. Pull down to try again."
                     onRetry={() => setShelfKey((k) => k + 1)}
                   />
                 ) : !matches ? (

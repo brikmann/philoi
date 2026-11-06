@@ -16,6 +16,9 @@ import { Colors, Fonts } from '@/constants/theme';
 // The center slot is the button-in-button: an ember disc floating above the bar inside a ring the
 // colour of the screen, carrying the only FILLED glyph in the set. Every other slot is a stroke
 // glyph: ember when active, faint when not.
+//
+// Chat carries the unread-DM count — the only badge on the bar. It used to be a paper-plane glyph in
+// the top-right globals; the declutter pass moved it to the tab that owns conversations.
 
 // `social` keeps its key and route: campfire "posts" buttons and installed builds deep-link /social.
 export type TabKey = 'index' | 'social' | 'lockin' | 'chat' | 'profile';
@@ -34,12 +37,15 @@ const RING = 6;
 export function BottomBar({
   active,
   sessionLive,
+  chatUnread = 0,
   bottomInset,
   onSelect,
 }: {
   /** The lit slot; null lights none. */
   active: TabKey | null;
   sessionLive: boolean;
+  /** Unread direct messages, drawn on the Chat slot. */
+  chatUnread?: number;
   bottomInset: number;
   onSelect: (key: TabKey) => void;
 }) {
@@ -79,6 +85,7 @@ export function BottomBar({
             );
           }
 
+          const badge = slot.key === 'chat' ? chatUnread : 0;
           return (
             <Pressable
               key={slot.key}
@@ -86,8 +93,15 @@ export function BottomBar({
               style={styles.slot}
               accessibilityRole="tab"
               accessibilityState={{ selected: focused }}
-              accessibilityLabel={slot.label}>
-              <NavGlyph name={slot.glyph} size={24} color={focused ? Colors.navEmber2 : Colors.spaceFaint} />
+              accessibilityLabel={badge > 0 ? `${slot.label}, ${badge} unread` : slot.label}>
+              <View>
+                <NavGlyph name={slot.glyph} size={24} color={focused ? Colors.navEmber2 : Colors.spaceFaint} />
+                {badge > 0 ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={[styles.label, { color: focused ? Colors.navEmber2 : Colors.spaceFaint }]}>{slot.label}</Text>
             </Pressable>
           );
@@ -150,6 +164,24 @@ const styles = StyleSheet.create({
   },
   heroOn: {
     borderColor: 'rgba(255,255,255,0.45)',
+  },
+  // The top bar's badge, moved here: ember pill, top-right of the glyph.
+  badge: {
+    position: 'absolute',
+    top: -5,
+    right: -9,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    backgroundColor: Colors.navEmber,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontFamily: Fonts.black,
+    fontSize: 9,
+    color: '#1A1030',
   },
   liveDot: {
     position: 'absolute',
