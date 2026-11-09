@@ -5,19 +5,20 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavDrawer } from '@/components/nav/app-drawer';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useDmUnread } from '@/hooks/use-dm-unread';
 import { useNotifications } from '@/hooks/use-notifications';
 
-// THE TOP-RIGHT GLOBALS (mocks 301/302, trimmed by the copy/declutter pass): brand left;
-// Search · Notifications · Menu right, on every tab — three, never more. Search is here rather than
-// inside Social so it's findable from anywhere (pre-submission fix E11) — it pushes its own screen.
-// The Shop sits in the drawer behind ☰ (Rewards); messages live in the Chat tab, whose slot on the
-// bottom bar carries the unread count the old paper-plane glyph used to.
+// THE TOP-RIGHT GLOBALS (ShareSpot mock 344): brand left; Messages · Notifications · Menu right, on
+// every tab — three, never more. Search is a bottom-bar tab now, so it left this row; ✉ Messages took
+// its place and carries the 1:1 DM unread count the old bottom-bar Chat slot used to. Group chats live
+// in Rooms (Home → Rooms), never behind this icon.
 
 export function AppTopBar({ title, right }: { title?: string; right?: ReactNode }) {
   const router = useRouter();
-  const onSearch = usePathname() === '/search';
+  const onMessages = usePathname() === '/messages';
   const { open } = useNavDrawer();
   const { unread, refreshCount } = useNotifications();
+  const dmUnread = useDmUnread();
 
   // The count refreshes on focus: tabs stay mounted (frozen) for the life of the app, so a mount-only
   // read would show this morning's number all day.
@@ -41,7 +42,9 @@ export function AppTopBar({ title, right }: { title?: string; right?: ReactNode 
       )}
       <View style={styles.actions}>
         {right}
-        {onSearch ? null : <GlobalButton glyph="search" label="Search" onPress={() => router.push('/search')} />}
+        {onMessages ? null : (
+          <GlobalButton glyph="plane" label="Messages" badge={dmUnread} onPress={() => router.push('/messages')} />
+        )}
         <GlobalButton glyph="bell" label="Notifications" badge={unread} onPress={() => router.push('/notifications')} />
         <GlobalButton glyph="menu" label="Menu" onPress={open} />
       </View>

@@ -1,12 +1,16 @@
 import { usePathname, useRouter } from 'expo-router';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Image } from 'expo-image';
+import { Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/ui/icon';
 import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { campfireUrl } from '@/lib/api/rooms';
+import { useAuth } from '@/lib/auth/auth-context';
 
 // THE SINGLE NAV (mock 157 option B, drawn per mocks 158/159/161).
 //
@@ -44,54 +48,27 @@ type NavRow = {
 
 type NavGroup = { title: string; rows: NavRow[] };
 
-// THE MENU BEHIND ☰ (nav restructure, mock 301). Home · Search · Lock In · Leaderboard · Profile
-// are on the bottom bar now, so the drawer holds everything that does not earn a permanent slot —
-// mock 301's list, plus the destinations the old Play/Social groups carried that have no other
-// home (Friends, Challenges, People like you, history), so nothing is orphaned by the move.
-// Notifications left the drawer in the declutter pass: the bell is on every tab's top bar, so a second
-// door here was the duplicate path.
+// THE MENU BEHIND ☰ (ShareSpot mock 368). Trimmed to what earns a row: the campfire-URL header
+// (philoi.app/{username} — never an @ in a URL — with Share / Copy), then You and Rewards, then
+// Settings apart. Rooms opens Home → Rooms (where group chats live). Destinations the mock dropped
+// stay reachable elsewhere: Forge + Inventory from the Shop and your Campfire, Cindy from every
+// header, Challenges + fitness from Lock In, People like you from Search.
 const GROUPS: NavGroup[] = [
   {
-    title: 'Social',
+    title: 'You',
     rows: [
-      { key: 'campfires', label: 'Campfires', icon: 'campfires', route: '/campfires' },
-      {
-        key: 'friends',
-        label: 'Friends',
-        icon: 'friends',
-        route: '/people',
-        match: ['/people', '/friend-profile'],
-      },
-      // People like you (0275's matching; the route keeps its old /grind-alikes name for installed
-      // builds and pushes): where you meet people you don't know yet. Also on Search and Profile.
-      {
-        key: 'grind-alikes',
-        label: 'People like you',
-        icon: 'members',
-        route: '/grind-alikes',
-        match: ['/grind-alikes', '/grind-alike'],
-      },
-      { key: 'invite', label: 'Invite friends', icon: 'person-plus', route: '/add-friend' },
-      { key: 'challenges', label: 'Challenges', icon: 'challenges', route: '/challenges' },
+      { key: 'friends', label: 'Friends', icon: 'friends', route: '/friends', match: ['/friends', '/people', '/friend-profile'] },
+      { key: 'invite', label: 'Invite friends', icon: 'person-plus', route: '/invite', match: ['/invite', '/add-friend'] },
+      { key: 'leaderboards', label: 'Leaderboards', icon: 'leaderboards', route: '/leaderboards' },
+      { key: 'rooms', label: 'Rooms', icon: 'campfires', route: '/?pane=rooms', match: ['/room', '/campfires'] },
+      { key: 'history', label: 'History', icon: 'agora', route: '/lock-in-history' },
     ],
   },
   {
     title: 'Rewards',
     rows: [
       { key: 'shop', label: 'Shop', icon: 'shop', route: '/shop' },
-      { key: 'inventory', label: 'Inventory', icon: 'inventory', route: '/inventory' },
-      // `lit` is mock 158's `.mrow.forge` treatment: an ember left border, an ember label and an
-      // ember icon. The only row in the drawer that gets it.
-      { key: 'forge', label: 'Forge', icon: 'forge', route: '/forge', lit: true },
-      { key: 'pass', label: 'Flame Pass', icon: 'pass', route: '/forge-pass' },
-    ],
-  },
-  {
-    title: 'You',
-    rows: [
-      { key: 'history', label: 'Lock-in history', icon: 'leaderboards', route: '/lock-in-history' },
-      { key: 'fitness-sync', label: 'Fitness trackers', icon: 'sliders', route: '/fitness-trackers' },
-      { key: 'cindy', label: 'Cindy', icon: 'agora', route: '/cindy' },
+      { key: 'pass', label: 'Flame Pass', icon: 'pass', route: '/forge-pass', lit: true },
     ],
   },
 ];
@@ -140,6 +117,58 @@ export function DrawerButton({ color = Colors.ink, size = 22 }: { color?: string
     <Pressable onPress={open} hitSlop={10} accessibilityRole="button" accessibilityLabel="Menu">
       <PhiloiIcon name="menu" size={size} color={color} />
     </Pressable>
+  );
+}
+
+// Mock 368's header: your avatar + flame, philoi.app/{username} (no @ — SHARED §1), Share / Copy.
+function CampfireUrlCard({ onOpen }: { onOpen: () => void }) {
+  const { profile } = useAuth();
+  const [copied, setCopied] = useState(false);
+  const url = campfireUrl(profile?.handle);
+  if (!profile) return null;
+  const name = profile.display_name || 'You';
+  return (
+    <View style={styles.urlCard}>
+      <Pressable style={styles.urlTop} onPress={onOpen} accessibilityRole="button" accessibilityLabel="Your Campfire">
+        {profile.avatar_url ? (
+          <Image source={{ uri: profile.avatar_url }} style={styles.urlAvatar} />
+        ) : (
+          <View style={[styles.urlAvatar, styles.urlAvatarEmpty]}>
+            <Text style={styles.urlAvatarText}>{name.slice(0, 1).toUpperCase()}</Text>
+          </View>
+        )}
+        <View style={styles.urlText}>
+          <Text style={styles.urlName} numberOfLines={1}>
+            {name} 🔥
+          </Text>
+          {url ? (
+            <Text style={styles.urlLink} numberOfLines={1}>
+              {url}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+      {url ? (
+        <View style={styles.urlActions}>
+          <Pressable
+            style={[styles.urlBtn, styles.urlBtnPrimary]}
+            onPress={() => void Share.share({ message: `Come find me on Philoi — https://${url}` })}
+            accessibilityRole="button">
+            <Text style={[styles.urlBtnText, styles.urlBtnTextPrimary]}>📣 Share campfire</Text>
+          </Pressable>
+          <Pressable
+            style={styles.urlBtn}
+            onPress={async () => {
+              await Clipboard.setStringAsync(`https://${url}`);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            }}
+            accessibilityRole="button">
+            <Text style={styles.urlBtnText}>{copied ? 'Copied ✓' : '🔗 Copy link'}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -243,6 +272,7 @@ function AppDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+              <CampfireUrlCard onOpen={() => go('/profile')} />
               {GROUPS.map((group) => (
                 <View key={group.title} style={styles.group}>
                   <Text style={styles.groupTitle}>{group.title.toUpperCase()}</Text>
@@ -315,6 +345,35 @@ function Row({
 }
 
 const styles = StyleSheet.create({
+  urlCard: {
+    marginBottom: Spacing.three,
+    padding: 12,
+    gap: 10,
+    borderRadius: 16,
+    backgroundColor: '#24142C',
+    borderWidth: 1,
+    borderColor: '#4A2A2A',
+  },
+  urlTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  urlAvatar: { width: 42, height: 42, borderRadius: 21 },
+  urlAvatarEmpty: { backgroundColor: Colors.spacePanel2, alignItems: 'center', justifyContent: 'center' },
+  urlAvatarText: { fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.ink },
+  urlText: { flex: 1 },
+  urlName: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.ink },
+  urlLink: { fontFamily: Fonts.bodySemiBold, fontSize: 12, color: Colors.navEmber2 },
+  urlActions: { flexDirection: 'row', gap: 6 },
+  urlBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: Colors.spacePanel2,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  urlBtnPrimary: { backgroundColor: Colors.navEmber, borderColor: Colors.navEmber },
+  urlBtnText: { fontFamily: Fonts.bodyBold, fontSize: 11.5, color: Colors.ink },
+  urlBtnTextPrimary: { color: Colors.onEmber },
   root: {
     flex: 1,
   },

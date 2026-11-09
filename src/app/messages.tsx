@@ -7,10 +7,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/ui/avatar';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { fetchChatLiveNow } from '@/lib/api/chat';
 import { fetchMyDmThreads, type DmThreadSummary } from '@/lib/api/dm';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 
+// MESSAGES = 1:1 DMs ONLY (ShareSpot mock 350). Group chats live in Rooms (Home → Rooms) — the footer
+// says so and links there. Active-now dots come from get_chat_live_now (0291).
+//
 // MESSAGES — the ✈ global (nav restructure, mocks 301/303). The inbox the 1:1 threads never had: every
 // DM thread (get_my_dm_threads, 0206), newest first, each opening /dm/[friendId] as before. Cheers on a
 // live lock-in stay on the timer and in the locked-in-with-you panel — this is the conversation list.
@@ -19,13 +23,18 @@ export default function MessagesScreen() {
   const router = useRouter();
   const { session } = useAuth();
   const [threads, setThreads] = useState<DmThreadSummary[] | null>(null);
+  const [live, setLive] = useState<Map<string, number>>(new Map());
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      const next = await fetchMyDmThreads();
+      const [next, liveNow] = await Promise.all([
+        fetchMyDmThreads(),
+        fetchChatLiveNow().catch(() => new Map<string, number>()),
+      ]);
+      setLive(liveNow);
       setThreads(next.sort((a, b) => b.lastMessageAt.localeCompare(a.lastMessageAt)));
     } catch (e) {
       setError(getErrorMessage(e, 'Could not load your messages.'));
@@ -72,6 +81,13 @@ export default function MessagesScreen() {
               tintColor={Colors.navEmber}
             />
           }
+          ListFooterComponent={
+            <Pressable style={styles.footer} onPress={() => router.navigate('/?pane=rooms' as never)} accessibilityRole="link">
+              <Text style={styles.footerText}>
+                Group chats live in <Text style={styles.footerLink}>Rooms</Text>
+              </Text>
+            </Pressable>
+          }
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyTitle}>{error ?? 'No messages yet'}</Text>
@@ -87,11 +103,14 @@ export default function MessagesScreen() {
               onPress={() => router.push({ pathname: '/dm/[friendId]', params: { friendId: item.friendId } })}
               accessibilityRole="button"
               accessibilityLabel={`${item.displayName}${item.unread > 0 ? `, ${item.unread} unread` : ''}`}>
-              {item.avatarUrl ? (
-                <Image source={{ uri: item.avatarUrl }} style={styles.avatar} contentFit="cover" />
-              ) : (
-                <Avatar label={(item.displayName || '?').slice(0, 2).toUpperCase()} size={44} />
-              )}
+              <View>
+                {item.avatarUrl ? (
+                  <Image source={{ uri: item.avatarUrl }} style={styles.avatar} contentFit="cover" />
+                ) : (
+                  <Avatar label={(item.displayName || '?').slice(0, 2).toUpperCase()} size={44} />
+                )}
+                {(live.get(`dm:${item.friendId}`) ?? 0) > 0 ? <View style={styles.activeDot} /> : null}
+              </View>
               <View style={styles.rowText}>
                 <Text style={[styles.name, item.unread > 0 && styles.nameUnread]} numberOfLines={1}>
                   {item.displayName}
@@ -151,6 +170,30 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
+  },
+  activeDot: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#39D98A',
+    borderWidth: 2,
+    borderColor: Colors.spacePanel,
+  },
+  footer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.four,
+  },
+  footerText: {
+    fontFamily: Fonts.body,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
+  },
+  footerLink: {
+    fontFamily: Fonts.bodyBold,
+    color: Colors.navEmber2,
   },
   rowText: {
     flex: 1,
