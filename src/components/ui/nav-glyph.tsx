@@ -36,7 +36,9 @@ export type NavGlyphName =
   | 'session'
   | 'reward'
   | 'anthem'
-  | 'ticket';
+  | 'ticket'
+  // ── ShareSpot (ss0 §1): the Lock In slot — a pencil, the study/project signal. Never swords. ──
+  | 'pencil';
 
 const S = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.6, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
@@ -110,6 +112,14 @@ const GLYPHS: Record<NavGlyphName, ReactNode> = {
       <Path d="M11 16 H37" {...S} />
       <Path d="M11 24 H37" {...S} />
       <Path d="M11 32 H31" {...S} />
+    </G>
+  ),
+  // A pencil on the diagonal: body, the sharpened tip, and the ferrule line under the eraser.
+  pencil: (
+    <G>
+      <Path d="M30 9 L39 18 L18 39 L8 40 L9 30 Z" {...S} />
+      <Path d="M26 13 L35 22" {...S} />
+      <Path d="M9 30 L18 39" {...S} />
     </G>
   ),
   brain: (

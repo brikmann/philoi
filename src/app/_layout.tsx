@@ -618,6 +618,8 @@ function RootNavigator() {
         <Stack.Screen name="dm/[friendId]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="activity/[checkInId]" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="lock-in-history" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* ShareSpot ss4 · mock 361 — the duel, Cindy referees. Draws its own back row. */}
+        <Stack.Screen name="duel" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* §4/§7 — the two profile showcase surfaces. Both draw their own back row and both take a
             ?userId, because both render for someone else as readily as for you. */}
         <Stack.Screen name="trophy-hall" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />

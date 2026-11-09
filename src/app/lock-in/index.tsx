@@ -36,6 +36,7 @@ import { useKeepScreenAwakePref } from '@/lib/reward-settings';
 import { FireShareCard } from '@/components/fire-share-card';
 import { FlameMeterComplete } from '@/components/flame-meter-complete';
 import { LockInDoneScreen } from '@/components/lockin-done-screen';
+import { PeopleLockedInNudge } from '@/components/lockin-hub/people-locked-in-nudge';
 import { LockInPresencePill } from '@/components/lockin-presence-pill';
 import { CheerTally, LockedInWithYouCluster, LockInCheerBannerView } from '@/components/lockin-cheers/locked-in-with-you-cluster';
 import { LockInCheersSheet } from '@/components/lockin-cheers/lockin-cheers-sheet';
@@ -1315,8 +1316,13 @@ function LockInScreen() {
             timer are the hero, and this is the thing you glance at once and feel accompanied by.
             Renders nothing at all until the number is worth showing, so on a quiet night this
             space simply does not exist. */}
+        {/* Mock 359 (ShareSpot ss4 §B): "🔥 12 of your people are locked in now" — your people
+            first; the app-wide count is the fallback when none of them are live. */}
         <View style={styles.presenceSlot}>
-          <LockInPresencePill presence={presence} />
+          <PeopleLockedInNudge
+            active={Boolean(activeSession) && !stopping && !posted && !paused}
+            fallback={<LockInPresencePill presence={presence} />}
+          />
         </View>
         <CheerTally cheers={cheersReceived} />
       </View>
@@ -1346,7 +1352,7 @@ function LockInScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TutorialTooltip visible={tutorialStep === 2} text="Tap Stop when you're done to lock it in for real." />
+        <TutorialTooltip visible={tutorialStep === 2} text="Tap End when you're done to lock it in for real." />
 
         {/* "Locked in with you" (mock 298) rides the body-double strip above. This pill only shows
             when the strip is empty — e.g. a friend just stopped and their thread is still open. */}
@@ -1395,9 +1401,10 @@ function LockInScreen() {
             onPress={handleStop}
             disabled={stopping}
             style={styles.stopButton}
-            accessibilityLabel="Stop lock-in"
+            accessibilityLabel="End lock-in"
             accessibilityRole="button">
-            <Text style={styles.stopLabel}>{stopping ? 'Stopping…' : 'Stop'}</Text>
+            {/* Mock 359: Pause / End. */}
+            <Text style={styles.stopLabel}>{stopping ? 'Ending…' : 'End'}</Text>
           </Pressable>
         </View>
       </View>

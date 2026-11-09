@@ -999,6 +999,12 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
 
             {c.status === 'active' ? <LiveRace c={c} myUserId={session?.user.id} placement={placement} /> : null}
 
+            {/* Mock 362 (ShareSpot ss4 §E): on a live lock-in-time race the next move is always the
+                same — go add to it. Opens the Lock In tab, where the discipline is one tap. */}
+            {c.status === 'active' && c.race_metric === 'lockin_time' ? (
+              <SpaceButton label="Lock in" onPress={() => router.navigate('/lockin')} style={styles.lockInCta} />
+            ) : null}
+
             {settled ? (
               <Results
                 challengeId={c.id}
@@ -1650,6 +1656,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -10000,
     left: 0,
+  },
+  lockInCta: {
+    marginTop: Spacing.three,
   },
   arena: {
     flexDirection: 'row',

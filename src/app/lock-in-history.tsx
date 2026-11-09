@@ -9,6 +9,8 @@ import { SpaceEmpty, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { fetchMyLockInsPage, type MyRecentLockIn } from '@/lib/api/check-ins';
+import { fetchMyWeek } from '@/lib/api/home';
+import { fetchMyLockInStats } from '@/lib/api/profile';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import { formatSessionDuration } from '@/lib/format';
@@ -21,12 +23,45 @@ const STRAVA_ORANGE = '#FC4C02';
 // Profile became the single home for lock-in data once Home's recent-lock-ins journal was removed
 // (4B), so this is where the full record lives. Same compact row as Profile's own list, paginated
 // because this list is unbounded where that one is capped at six.
+//
+// Mock 371 (ShareSpot ss4 §F): a lifetime · streak · sessions strip heads the list, and each row says
+// when in words people use — "today", "yesterday", then the date.
 function formatWhen(iso: string | undefined): string {
   if (!iso) return '';
   const then = new Date(iso);
   const today = new Date();
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const days = Math.round((startOf(today) - startOf(then)) / 86_400_000);
+  if (days === 0) return 'today';
+  if (days === 1) return 'yesterday';
   const sameYear = then.getFullYear() === today.getFullYear();
   return then.toLocaleDateString(undefined, { month: 'short', day: 'numeric', ...(sameYear ? {} : { year: 'numeric' }) });
+}
+
+/** Lifetime hours, whole once there's an hour; minutes before that. */
+function lifetimeLabel(seconds: number): string {
+  return seconds >= 3600 ? `${Math.floor(seconds / 3600).toLocaleString('en-US')}h` : `${Math.floor(seconds / 60)}m`;
+}
+
+type Totals = { lifetimeSeconds: number; sessions: number; streak: number };
+
+function StatStrip({ totals }: { totals: Totals }) {
+  return (
+    <View style={styles.strip}>
+      <View style={styles.stat}>
+        <Text style={styles.statValue}>{lifetimeLabel(totals.lifetimeSeconds)}</Text>
+        <Text style={styles.statLabel}>LIFETIME</Text>
+      </View>
+      <View style={styles.stat}>
+        <Text style={[styles.statValue, styles.statStreak]}>🔥 {totals.streak}</Text>
+        <Text style={styles.statLabel}>STREAK</Text>
+      </View>
+      <View style={styles.stat}>
+        <Text style={styles.statValue}>{totals.sessions.toLocaleString('en-US')}</Text>
+        <Text style={styles.statLabel}>SESSIONS</Text>
+      </View>
+    </View>
+  );
 }
 
 export default function LockInHistoryScreen() {
@@ -44,6 +79,27 @@ export default function LockInHistoryScreen() {
   // Guards against FlatList firing onEndReached repeatedly before the in-flight page resolves,
   // which would otherwise fetch the same offset several times and append duplicates.
   const loadingRef = useRef(false);
+  // The strip's three numbers: lifetime + sessions from get_my_lockin_stats, the streak from the same
+  // read Home's week card uses. Null until both land — a strip of zeros would be a lie for a beat.
+  const [totals, setTotals] = useState<Totals | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    Promise.all([fetchMyLockInStats(), fetchMyWeek()])
+      .then(([stats, week]) => {
+        if (!live) return;
+        setTotals({
+          lifetimeSeconds: Number(stats?.total_seconds ?? 0),
+          sessions: Number(stats?.lockin_count ?? 0),
+          streak: week?.currentStreak ?? 0,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [userId]);
 
   // First page: resolved in a promise callback rather than an awaited call in the effect body,
   // so state only ever updates once the fetch settles (matches how every other screen here loads).
@@ -108,7 +164,7 @@ export default function LockInHistoryScreen() {
   return (
     // Top edge only: the global footer sits under every screen and owns the bottom inset.
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <SpaceHeader title="Lock-ins" />
+      <SpaceHeader title="Lock-in history" />
 
       {loading ? (
         <View style={styles.centered}>
@@ -123,6 +179,7 @@ export default function LockInHistoryScreen() {
           showsVerticalScrollIndicator={false}
           onEndReachedThreshold={0.4}
           onEndReached={() => loadMore(items.length)}
+          ListHeaderComponent={totals ? <StatStrip totals={totals} /> : null}
           ListEmptyComponent={
             <View style={styles.centered}>
               <NavGlyph name="flame" size={24} color={Colors.spaceFaint} />
@@ -152,6 +209,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACE_GUTTER,
     paddingBottom: Spacing.five,
     gap: 6,
+  },
+  strip: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  stat: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  statValue: {
+    fontFamily: Fonts.black,
+    fontSize: 19,
+    color: Colors.ink,
+  },
+  statStreak: {
+    color: Colors.navEmber2,
+  },
+  statLabel: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    letterSpacing: 0.4,
+    color: Colors.muted,
+    marginTop: 2,
   },
   centered: {
     alignItems: 'center',

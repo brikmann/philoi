@@ -1,40 +1,53 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { LockInTrackerPrompt } from '@/components/fitness/tracker-prompts';
-import { LockinGoalPicker } from '@/components/lockin-goal-picker';
+import { YourWeekCard } from '@/components/home/your-week-card';
+import { EmberCta } from '@/components/lockin-hub/ember-cta';
+import { HubChallenges, HubFeed, HubPeopleCard, HubStandingsRow, SectionLabel } from '@/components/lockin-hub/hub-sections';
 import { AppTopBar } from '@/components/nav/app-top-bar';
-import { Icon, IconText } from '@/components/ui/icon';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
-import { Toggle } from '@/components/ui/toggle';
-import { UiGlyph } from '@/components/ui/ui-glyph';
-import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useActiveSession } from '@/lib/active-session-context';
-import { setPostToAgora } from '@/lib/api/agora';
-import { fetchMyGoals } from '@/lib/api/goals';
-import { useAuth } from '@/lib/auth/auth-context';
+import { itemAttachments } from '@/lib/agora-attachment';
+import { fetchAgoraFeed } from '@/lib/api/agora';
+import {
+  fetchMyWeek,
+  fetchPeopleActiveNow,
+  fetchPeopleWeek,
+  type MyWeek,
+  type PeopleActiveNow,
+  type PeopleWeek,
+} from '@/lib/api/home';
+import { fetchMySocialChallenges } from '@/lib/api/social-challenges';
+import { useCompetition } from '@/lib/competition';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
-import { confirmRemoveGoal } from '@/lib/goal-remove';
-import { GOAL_TYPE_META, goalTypeForChoice } from '@/lib/goal-types';
-import type { FitnessActivity, Goal, LockInCategory } from '@/types/database';
+import { goalTypeForChoice } from '@/lib/goal-types';
+import type { AgoraItem, FitnessActivity, LockInCategory, SocialChallenge } from '@/types/database';
 
-// LOCK IN — the center tab (nav restructure, mocks 302/303). Its own place, not just a button:
-// pick a discipline, optionally a goal, confirm the auto-post toggle, Start → the existing running
-// timer at /lock-in, unchanged. Presence and cheers stay on that timer.
+// LOCK IN — the tab (ShareSpot ss4 §A, mock 347). Pencil icon on the bar: the study/project signal,
+// never an "Arena" or crossed swords.
 //
-// The four quick tiles map onto the two-tap taxonomy exactly as the goal picker does (goal-types.ts
-// is the one place that decides the flat goal_type; the server re-derives it anyway). Custom opens
-// that full picker sheet — courses, campfire, detail, gym routine, session audio — so nothing the
-// sheet could do is lost by the faster path here.
+// DUAL PURPOSE, YOUR PROGRESS FIRST. The order is the point: you open the tab on YOUR week (ipsative —
+// you against your own last week, never against anyone), then your people as one collective number,
+// then a feed of their lock-in posts, then challenges, then a quiet opt-in Standings row. Nobody is
+// discouraged by somebody else's number before they've seen their own.
+//
+// Starting a session is the big action and stays one tap: the four disciplines from mock 327 (Deep
+// Work · Study · Gym · Cardio, no Custom, no Goal row, no post toggle — posting is asked once, on the
+// done screen) sit right above "Start a Lock-In". The tiles map onto the two-tap taxonomy via
+// goal-types.ts, the one place that decides the flat goal_type; the server re-derives it anyway.
+//
+// Every read is best-effort: a section whose read fails or comes back empty is simply not drawn, so a
+// slow network never blocks the Start button.
 
 type Discipline = {
   key: string;
   label: string;
   glyph: NavGlyphName;
-  category: LockInCategory | null;
+  category: LockInCategory;
   activity?: FitnessActivity;
 };
 
@@ -42,87 +55,63 @@ const DISCIPLINES: Discipline[] = [
   { key: 'deep_work', label: 'Deep Work', glyph: 'brain', category: 'deep_work' },
   { key: 'study', label: 'Study', glyph: 'book', category: 'study' },
   { key: 'gym', label: 'Gym', glyph: 'dumbbell', category: 'fitness', activity: 'strength' },
-  { key: 'cardio', label: 'Run / Cardio', glyph: 'lungs', category: 'fitness', activity: 'cardio' },
-  { key: 'custom', label: 'Custom', glyph: 'plus', category: null },
+  { key: 'cardio', label: 'Cardio', glyph: 'lungs', category: 'fitness', activity: 'cardio' },
 ];
+
+/** How many of your people's lock-in posts the hub shows before the full feed takes over. */
+const FEED_SHOWN = 4;
+
+/** A lock-in post first; failing enough of those, any post with words in it. Standing-only posts never. */
+function pickFeed(items: AgoraItem[]): AgoraItem[] {
+  const lockins = items.filter((it) => itemAttachments(it).some((a) => a.kind === 'lockin'));
+  if (lockins.length >= FEED_SHOWN) return lockins.slice(0, FEED_SHOWN);
+  const words = items.filter((it) => !lockins.includes(it) && it.item_type === 'post' && Boolean(it.body?.trim()));
+  return [...lockins, ...words]
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+    .slice(0, FEED_SHOWN);
+}
+
+const LIVE_STATUSES = new Set<SocialChallenge['status']>(['pending', 'active']);
 
 export default function LockInTab() {
   const router = useRouter();
-  const { session, profile } = useAuth();
   const { session: activeSession } = useActiveSession();
+  const competition = useCompetition();
   const [picked, setPicked] = useState<Discipline>(DISCIPLINES[0]);
-  const [goalLabel, setGoalLabel] = useState<string | null>(null);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  // Seeded from the sticky default on the profile row (0273); absent before that migration = off.
-  const [autoPost, setAutoPost] = useState(Boolean(profile?.post_to_agora));
-  const [autoPostNote, setAutoPostNote] = useState<string | null>(null);
 
-  // On focus, not mount: "+ New goal" pushes /goal/create and comes back here, and the tab never
-  // unmounts — the goal just made has to be in the row that sent you to make it.
+  const [myWeek, setMyWeek] = useState<MyWeek | null>(null);
+  const [peopleWeek, setPeopleWeek] = useState<PeopleWeek | null>(null);
+  const [peopleNow, setPeopleNow] = useState<PeopleActiveNow | null>(null);
+  const [feed, setFeed] = useState<AgoraItem[]>([]);
+  const [challenges, setChallenges] = useState<SocialChallenge[]>([]);
+
+  // Re-read on every focus — coming back from a finished session should show the new week. Each read
+  // settles on its own; `live` is this focus's guard (a blur stops a slow read from landing late).
   useFocusEffect(
     useCallback(() => {
-      if (!session) return;
       let live = true;
-      fetchMyGoals(session.user.id)
-        .then((g) => {
-          if (live) setGoals(g);
-        })
-        .catch(() => {
-          // Goals are a shortcut here; an unnamed session still starts without them.
-          if (live) setGoals([]);
-        });
+      fetchMyWeek()
+        .then((w) => live && setMyWeek(w))
+        .catch(() => {});
+      fetchPeopleWeek()
+        .then((w) => live && setPeopleWeek(w))
+        .catch(() => {});
+      fetchPeopleActiveNow()
+        .then((n) => live && setPeopleNow(n))
+        .catch(() => {});
+      fetchAgoraFeed('all', null, 30)
+        .then((items) => live && setFeed(pickFeed(items)))
+        .catch(() => {});
+      fetchMySocialChallenges()
+        .then((cs) => live && setChallenges(cs.filter((c) => LIVE_STATUSES.has(c.status)).slice(0, 3)))
+        .catch(() => {});
       return () => {
         live = false;
       };
-    }, [session])
+    }, [])
   );
 
-  // Pre-submission C8: a goal you made can be deleted (archived) from its chip.
-  function removeGoal(goal: Goal) {
-    confirmRemoveGoal(goal, {
-      onRemoved: () => {
-        setGoals((cur) => cur.filter((g) => g.id !== goal.id));
-        if (goalLabel === (goal.label ?? '').trim()) setGoalLabel(null);
-      },
-      // The server refused: re-read, so the chip comes back exactly as stored.
-      onFailed: () => {
-        if (!session) return;
-        fetchMyGoals(session.user.id)
-          .then(setGoals)
-          .catch(() => {});
-      },
-    });
-  }
-
-  const goalType = picked.category ? goalTypeForChoice(picked.category, picked.activity ?? null) : null;
-  const namedGoals = goalType
-    ? goals.filter((g) => g.type === goalType && (g.label ?? '').trim().length > 0)
-    : [];
-
-  function pick(d: Discipline) {
-    if (d.category === null) {
-      setPickerOpen(true);
-      return;
-    }
-    setPicked(d);
-    setGoalLabel(null);
-  }
-
-  async function toggleAutoPost(next: boolean) {
-    setAutoPost(next);
-    setAutoPostNote(null);
-    try {
-      await setPostToAgora(next);
-    } catch {
-      // set_post_to_agora is 0273 — not on every server yet. Say so rather than pretend it saved.
-      setAutoPost(!next);
-      setAutoPostNote('Auto-post isn’t live yet — post from the done screen for now.');
-    }
-  }
-
   function start() {
-    if (!picked.category) return;
     // Same contract as the goal picker's handleStart: audio reset on every start, and the gym
     // session gets its energy param so start_workout runs once the lock-in exists.
     setSessionAudioChoice(undefined);
@@ -132,7 +121,6 @@ export default function LockInTab() {
         type: goalTypeForChoice(picked.category, picked.activity ?? null),
         category: picked.category,
         ...(picked.activity ? { activity: picked.activity } : {}),
-        ...(goalLabel ? { detail: goalLabel } : {}),
         ...(picked.activity === 'strength' ? { energy: 'same' } : {}),
       },
     });
@@ -140,20 +128,17 @@ export default function LockInTab() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      <AppTopBar />
+      <AppTopBar title="Lock In" />
       <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
-          <NavGlyph name="flame" size={64} color={Colors.navEmber} />
-          <Text style={styles.heroTitle}>{activeSession ? 'You’re locked in' : 'Ready to lock in?'}</Text>
-          <Text style={styles.heroSub}>
-            {activeSession ? 'Your session is still running.' : 'Pick what you’re grinding on.'}
-          </Text>
-        </View>
-
+        {/* ── 1 · the big action ── */}
         {activeSession ? (
-          <Pressable style={styles.startBtn} onPress={() => router.push('/lock-in')} accessibilityRole="button">
-            <Text style={styles.startLabel}>Return to your lock-in</Text>
-          </Pressable>
+          <EmberCta
+            big
+            label="Return to your lock-in"
+            leading={<NavGlyph name="flame" size={22} color="#2A0F05" />}
+            onPress={() => router.push('/lock-in')}
+            style={styles.cta}
+          />
         ) : (
           <>
             <View style={styles.discs}>
@@ -162,12 +147,12 @@ export default function LockInTab() {
                 return (
                   <Pressable
                     key={d.key}
-                    onPress={() => pick(d)}
+                    onPress={() => setPicked(d)}
                     style={[styles.disc, on && styles.discOn]}
                     accessibilityRole="button"
                     accessibilityState={{ selected: on }}
-                    accessibilityLabel={d.category ? d.label : 'Custom — more options'}>
-                    <NavGlyph name={d.glyph} size={30} color={on ? Colors.navEmber : Colors.spaceDim} />
+                    accessibilityLabel={d.label}>
+                    <NavGlyph name={d.glyph} size={22} color={on ? Colors.navEmber : Colors.spaceDim} />
                     <Text style={[styles.discLabel, on && styles.discLabelOn]} numberOfLines={1}>
                       {d.label}
                     </Text>
@@ -176,78 +161,55 @@ export default function LockInTab() {
               })}
             </View>
 
-            {/* Mock 314: Gym or Run is the moment a tracker matters — say so right there. Renders
+            {/* Mock 314: Gym or Cardio is the moment a tracker matters — say so right there. Renders
                 nothing once any tracker is connected, and never for Study / Deep Work. */}
             {picked.activity === 'strength' || picked.activity === 'cardio' ? (
               <LockInTrackerPrompt activity={picked.activity} style={styles.trackerPrompt} />
             ) : null}
 
-            <Text style={styles.section}>Goal</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.goalRow}>
-              <Pressable
-                onPress={() => setGoalLabel(null)}
-                style={[styles.goalChip, goalLabel === null && styles.goalChipOn]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: goalLabel === null }}>
-                <Text style={[styles.goalChipText, goalLabel === null && styles.goalChipTextOn]}>
-                  Just {picked.label.toLowerCase()}
-                </Text>
-              </Pressable>
-              {namedGoals.map((g) => {
-                const label = (g.label ?? '').trim();
-                const on = goalLabel === label;
-                return (
-                  <Pressable
-                    key={g.id}
-                    onPress={() => setGoalLabel(on ? null : label)}
-                    onLongPress={() => removeGoal(g)}
-                    style={[styles.goalChip, on && styles.goalChipOn]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: on }}>
-                    <Icon name="target" size={13} color={on ? Colors.gold : Colors.spaceDim} />
-                    <Text style={[styles.goalChipText, on && styles.goalChipTextOn]}>{label}</Text>
-                    {/* Its own button inside the chip; a long-press on the chip does the same. */}
-                    <Pressable
-                      onPress={() => removeGoal(g)}
-                      hitSlop={8}
-                      style={styles.goalChipRemove}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Delete the ${label} goal`}>
-                      <UiGlyph name="close" size={11} color={Colors.spaceFaint} />
-                    </Pressable>
-                  </Pressable>
-                );
-              })}
-              {goalType ? (
-                <Pressable
-                  onPress={() => router.push({ pathname: '/goal/create', params: { type: goalType } })}
-                  style={[styles.goalChip, styles.goalChipNew]}
-                  accessibilityRole="button"
-                  accessibilityLabel={`New ${GOAL_TYPE_META[goalType].label} goal`}>
-                  <Ionicons name="add" size={13} color={Colors.navEmber2} />
-                  <Text style={[styles.goalChipText, styles.goalChipNewText]}>New goal</Text>
-                </Pressable>
-              ) : null}
-            </ScrollView>
-
-            <View style={styles.row}>
-              <View style={styles.rowText}>
-                <IconText icon="share" style={styles.rowTitle} iconColor={Colors.ink}>
-                  Post to Home when done
-                </IconText>
-                <Text style={styles.rowSub}>{autoPostNote ?? 'Your session card goes to the feed.'}</Text>
-              </View>
-              <Toggle value={autoPost} onValueChange={(v) => void toggleAutoPost(v)} />
-            </View>
-
-            <Pressable style={styles.startBtn} onPress={start} accessibilityRole="button">
-              <Text style={styles.startLabel}>Start lock-in</Text>
-            </Pressable>
+            <EmberCta
+              big
+              label="Start a Lock-In"
+              accessibilityLabel={`Start a ${picked.label} lock-in`}
+              leading={<NavGlyph name="flame" size={22} color="#2A0F05" />}
+              onPress={start}
+              style={styles.cta}
+            />
           </>
         )}
-      </ScrollView>
 
-      <LockinGoalPicker visible={pickerOpen} onClose={() => setPickerOpen(false)} />
+        {/* ── 2 · you first ── */}
+        {myWeek ? (
+          <>
+            <SectionLabel>Your week</SectionLabel>
+            <YourWeekCard week={myWeek} />
+          </>
+        ) : null}
+
+        {/* ── 3 · then your people, as one number ── */}
+        {peopleWeek && peopleWeek.people > 0 ? (
+          <>
+            <SectionLabel>Your people</SectionLabel>
+            <HubPeopleCard week={peopleWeek} now={peopleNow} />
+          </>
+        ) : null}
+
+        {/* ── 4 · the feed — a feed, not a stat sheet ── */}
+        <SectionLabel>Study season 📚</SectionLabel>
+        <HubFeed items={feed} onCompose={() => router.push('/agora/compose')} />
+
+        {/* ── 5 · challenges ── */}
+        <SectionLabel>Challenges</SectionLabel>
+        <HubChallenges live={challenges} />
+
+        {/* ── 6 · the only door to rank-vs-others, and it's opt-in (off by default) ── */}
+        <SectionLabel>Standings</SectionLabel>
+        <HubStandingsRow on={competition.on} onPress={() => router.push('/leaderboards')} />
+
+        <Pressable onPress={() => router.push('/lock-in-history')} style={styles.historyLink} accessibilityRole="button">
+          <Text style={styles.historyLinkText}>Your lock-in history ›</Text>
+        </Pressable>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -258,36 +220,18 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.five,
-  },
-  hero: {
-    alignItems: 'center',
-    paddingTop: Spacing.four,
-    paddingBottom: Spacing.four,
-    gap: 6,
-  },
-  heroTitle: {
-    fontFamily: Fonts.black,
-    fontSize: 24,
-    color: Colors.ink,
-    marginTop: Spacing.two,
-  },
-  heroSub: {
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.spaceDim,
   },
   discs: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
+    gap: 8,
   },
   disc: {
-    flexBasis: '31%',
-    flexGrow: 1,
+    flex: 1,
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 14,
+    gap: 5,
+    paddingVertical: 11,
     borderRadius: 14,
     backgroundColor: Colors.spacePanel,
     borderWidth: 1,
@@ -299,7 +243,7 @@ const styles = StyleSheet.create({
   },
   discLabel: {
     fontFamily: Fonts.bodyBold,
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.spaceDim,
   },
   discLabelOn: {
@@ -308,91 +252,17 @@ const styles = StyleSheet.create({
   trackerPrompt: {
     marginTop: Spacing.three,
   },
-  section: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 11,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: Colors.spaceFaint,
-    marginTop: Spacing.four,
-    marginBottom: Spacing.two,
+  cta: {
+    marginTop: Spacing.three,
   },
-  goalRow: {
-    gap: Spacing.two,
+  historyLink: {
+    alignSelf: 'center',
+    paddingVertical: Spacing.three,
+    marginTop: Spacing.two,
   },
-  goalChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.spacePanel,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  goalChipOn: {
-    borderColor: Colors.gold,
-    backgroundColor: 'rgba(255,209,102,0.08)',
-  },
-  goalChipText: {
+  historyLinkText: {
     fontFamily: Fonts.bodySemiBold,
     fontSize: 12.5,
     color: Colors.spaceDim,
-  },
-  goalChipTextOn: {
-    color: Colors.gold,
-  },
-  goalChipNew: {
-    borderStyle: 'dashed',
-  },
-  goalChipRemove: {
-    marginLeft: 2,
-    paddingLeft: 2,
-  },
-  goalChipNewText: {
-    color: Colors.navEmber2,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.twelve,
-    marginTop: Spacing.four,
-    padding: Spacing.twelve,
-    borderRadius: 14,
-    backgroundColor: Colors.spacePanel,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  rowText: {
-    flex: 1,
-    gap: 2,
-  },
-  rowTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 13.5,
-    color: Colors.ink,
-  },
-  rowSub: {
-    fontFamily: Fonts.body,
-    fontSize: 11.5,
-    color: Colors.spaceDim,
-  },
-  startBtn: {
-    marginTop: Spacing.four,
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
-    backgroundColor: Colors.navEmber,
-    shadowColor: Colors.navEmber,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  startLabel: {
-    fontFamily: Fonts.black,
-    fontSize: 16,
-    color: '#2A0F05',
   },
 });
