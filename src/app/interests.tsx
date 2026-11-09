@@ -2,57 +2,53 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { SHOW_ALIKE_SCORE } from '@/components/matchmaking/config';
-import { MatchAvatar } from '@/components/matchmaking/match-avatar';
+import { MatchingSwitch } from '@/components/discover/matching-opt-in';
 import { FirstRunSpine, SPINE_ROW_HEIGHT } from '@/components/tutorial/first-run-spine';
 import { Icon } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
-import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
-import { setCompetitionOptIn } from '@/lib/competition';
-import { joinForest } from '@/lib/api/forests';
-import { sendFriendRequest } from '@/lib/api/friend-requests';
 import {
   fetchInterestVocab,
   fetchMyInterests,
-  fetchSuggestedForests,
+  INTEREST_CATEGORIES,
+  PROGRAM_CATEGORY,
   setMyInterests,
   vocabIcon,
-  type SuggestedForest,
   type VocabTag,
 } from '@/lib/api/interests';
-import { fetchGrindAlikes, fetchMyMatchSettings, setMyMatchSettings } from '@/lib/api/matchmaking';
+import { fetchMyMatchSettings, setMyMatchSettings } from '@/lib/api/matchmaking';
 import { getErrorMessage } from '@/lib/errors';
 import { clearInterestsPending } from '@/lib/interests-flow';
-import { shortSchoolName } from '@/lib/universities';
-import type { GrindAlike } from '@/types/social';
 
 // INTERESTS → GOALS → YOUR MATCHES (mock 323, 0285). The cold-start signal for matching: before a
 // single lock-in, what you picked here is what grind-alikes and forest suggestions run on.
 //
 // Two ways in:
 //   · first run — the root layout's interests gate sends a freshly set-up account here once, after
-//     the house claim (lib/interests-flow). All three steps; every exit clears the gate.
+//     the house claim (lib/interests-flow). One step here, then matchmaking → your people (which clears the gate).
 //   · ?edit=1 — from Edit identity, any time. Steps A and B only, then Save and back. Matching reads
 //     these at query time, so a change re-matches on the next shelf load; nothing to re-run.
 //
 // A and B are both skippable and nothing gates on them (this is not the old #19 goal-gate): goals
 // are intent, never a tracked target. One local `step`, like setup-handle, so Back is just state.
 //
-// The reveal never opts anyone in silently. 0275's discoverable stays off until the person taps
-// "Turn on matching" here; until then they still get forest suggestions, which need no opt-in.
+// SHARESPOT (ss2, mocks 378 → 383 → 379): first run is ONE step here now — interests, an optional
+// Spotify/Calendar connect, and "Find my people →", which runs the matcher (/discover/matchmaking)
+// and lands on Your people (/discover/your-people), which ends first run. The goals step is edit-
+// mode only. Matching ("friends-matching ON by default") is a visible switch beside the button,
+// starting on, with what it means written under it; it's applied only when the person taps on.
+// Nothing is opted in silently. The old in-screen reveal (mock 333) and its global-standings switch
+// are gone from onboarding; standings stay opt-in from Settings.
 //
-// MOCK 333 (connection-first): the reveal is "find your people" — clubs that match what you picked
-// ("★ Popular · matches Running"), people like you to add, Join / Add inline, skippable. It seeds
-// the graph Discover and Chat run on from minute one. The ONLY competition on any onboarding screen
-// is the one switch at the bottom, "Show me global standings", off unless you flip it.
+// 0296 / MOCK 339 (interests, not disciplines): step A leads with ten hobby sections (Active, Mind,
+// Finance, Create, Play, Culture, Food, Outdoors, People, Pets) — featured chips, "+ N" to expand,
+// one search over all ~150. The five disciplines follow as a small row: the lock-in picker and
+// relic buckets still need them, but they aren't what you're asked first.
+//
 
-/** A forest this size reads as an established club, not a stub — mock 333's "★ Popular". */
-const POPULAR_MEMBERS = 25;
-
-type Step = 1 | 2 | 3;
+type Step = 1 | 2;
 
 const MAX_INTERESTS = 12;
 
@@ -71,11 +67,15 @@ export default function InterestsScreen() {
   const [tags, setTags] = useState<string[]>([]);
   const [goals, setGoals] = useState<string[]>([]);
   const [programTags, setProgramTags] = useState<string[]>([]);
-  const [showMore, setShowMore] = useState(false);
+  // Sections expanded past their featured chips ("+ N").
+  const [open, setOpen] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   // Skip means "don't touch this list", not "clear it" — an edit-mode Skip must not wipe a save.
   const [skippedA, setSkippedA] = useState(false);
   const [saving, setSaving] = useState(false);
+  // First run: matching starts ON, visibly, beside the button (MatchingSwitch). Null = already on,
+  // so there's nothing to ask.
+  const [matchOn, setMatchOn] = useState<boolean | null>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -99,6 +99,17 @@ export default function InterestsScreen() {
     };
   }, [loadKey]);
 
+  useEffect(() => {
+    if (editing) return;
+    let live = true;
+    fetchMyMatchSettings()
+      .then((s) => live && s.discoverable && setMatchOn(null))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [editing]);
+
   const byKind = useMemo(() => {
     const all = vocab ?? [];
     return {
@@ -110,12 +121,28 @@ export default function InterestsScreen() {
 
   const labelOf = useCallback((key: string) => vocab?.find((t) => t.key === key)?.label ?? key, [vocab]);
 
-  // Featured hubs, plus anything already picked from behind "+ more" so a pick never hides itself.
-  const shownInterests = byKind.interest.filter((t) => t.featured || tags.includes(t.key));
+  // The ten sections (0296). Tags with a category this build doesn't know — or none, from a pre-0296
+  // server — collect in one trailing section, so nothing the server offers is unreachable. Program
+  // tags aren't browsed: your program already implies them (programNote below).
+  const sections = useMemo(() => {
+    const known = new Set(INTEREST_CATEGORIES.map((c) => c.key));
+    const groups = INTEREST_CATEGORIES.map((c) => ({
+      key: c.key,
+      title: c.title,
+      tags: byKind.interest.filter((t) => t.category === c.key),
+    })).filter((g) => g.tags.length > 0);
+    const rest = byKind.interest.filter((t) => !t.category || (!known.has(t.category) && t.category !== PROGRAM_CATEGORY));
+    if (rest.length > 0) groups.push({ key: 'more', title: groups.length > 0 ? 'More' : 'Interests', tags: rest });
+    return groups;
+  }, [byKind.interest]);
+
+  // A program tag you hold (picked before 0296 moved it out of browse) stays visible so it can be unpicked.
+  const heldProgram = byKind.interest.filter((t) => t.category === PROGRAM_CATEGORY && tags.includes(t.key));
+
   const q = query.trim().toLowerCase();
-  const moreInterests = byKind.interest.filter(
-    (t) => !t.featured && !tags.includes(t.key) && (q === '' || t.label.toLowerCase().includes(q)),
-  );
+  // Search reaches every interest tag, program ones included, picked or not.
+  const results = q === '' ? [] : byKind.interest.filter((t) => t.label.toLowerCase().includes(q));
+  const pickTag = (key: string) => setTags((s) => toggle(s, key, MAX_INTERESTS));
 
   /** Every exit from first run — done, skipped through, or "explore on my own". */
   const finish = useCallback(async () => {
@@ -123,6 +150,18 @@ export default function InterestsScreen() {
     if (editing) router.back();
     else router.replace('/');
   }, [editing, router, userId]);
+
+  /** First run, 378 → 383: save what was picked, apply the visible matching switch, run the matcher. */
+  async function findMyPeople(skip: boolean) {
+    setSaving(true);
+    setError(null);
+    await Promise.allSettled([
+      skip ? Promise.resolve() : setMyInterests({ disciplines, interest_tags: tags }),
+      matchOn ? setMyMatchSettings({ discoverable: true }) : Promise.resolve(),
+    ]).then((r) => r.forEach((x) => x.status === 'rejected' && console.warn('[interests] first-run save failed — continuing:', x.reason)));
+    setSaving(false);
+    router.replace({ pathname: '/discover/matchmaking', params: { onboarding: '1' } } as never);
+  }
 
   async function save(opts: { skipGoals: boolean }) {
     if (skippedA && opts.skipGoals) return;
@@ -149,8 +188,7 @@ export default function InterestsScreen() {
       console.warn('[interests] could not save — continuing without it:', e);
     }
     setSaving(false);
-    if (editing) router.back();
-    else setStep(3);
+    router.back();
   }
 
   if (loadFailed) {
@@ -176,80 +214,127 @@ export default function InterestsScreen() {
     );
   }
 
-  const total = editing ? 2 : 3;
+  // First run is ShareSpot's 4-step setup: identity, patron, THIS (3), your people (4).
+  const total = editing ? 2 : 4;
+  const filled = editing ? step : 3;
   const picked = disciplines.length + tags.length;
 
   return (
     <Screen padded={false} style={styles.container}>
       <View style={styles.spineRow}>
-        <FirstRunSpine total={total} filled={step} label={`SETUP · ${step} of ${total}`} />
+        <FirstRunSpine total={total} filled={filled} label={`SETUP · ${filled} of ${total}`} />
       </View>
 
       {step === 1 && (
         <>
           <ScrollView style={styles.flex} contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-            <Text style={styles.h}>What are you into?</Text>
-            <Text style={styles.sub}>Pick what you care about — we&apos;ll match you with people chasing the same things.</Text>
+            <Text style={styles.h}>What you&apos;re into</Text>
+            <Text style={styles.sub}>Pick what you love. The more you add, the better we find your people.</Text>
 
-            <Text style={styles.sec}>Disciplines</Text>
-            <View style={styles.chips}>
-              {byKind.discipline.map((t) => (
-                <TagChip
-                  key={t.key}
-                  tag={t}
-                  tone="ember"
-                  selected={disciplines.includes(t.key)}
-                  onPress={() => setDisciplines((s) => toggle(s, t.key))}
-                />
-              ))}
-            </View>
-
-            <Text style={styles.sec}>Forests · interest hubs</Text>
-            <View style={styles.chips}>
-              {shownInterests.map((t) => (
-                <TagChip
-                  key={t.key}
-                  tag={t}
-                  tone="legend"
-                  selected={tags.includes(t.key)}
-                  onPress={() => setTags((s) => toggle(s, t.key, MAX_INTERESTS))}
-                />
-              ))}
-              {!showMore && (
-                <Pressable style={styles.chip} onPress={() => setShowMore(true)} accessibilityRole="button">
-                  <Icon name="plus" size={14} color={Colors.muted} />
-                  <Text style={styles.chipText}>more</Text>
+            <View style={styles.search}>
+              <Icon name="search" size={15} color={Colors.spaceDim} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search interests — anime, climbing, coffee…"
+                placeholderTextColor={Colors.spaceFaint}
+                style={styles.searchInput}
+                autoCorrect={false}
+                autoCapitalize="none"
+                returnKeyType="search"
+              />
+              {query !== '' ? (
+                <Pressable onPress={() => setQuery('')} accessibilityRole="button" accessibilityLabel="Clear search" hitSlop={8}>
+                  <Icon name="close" size={14} color={Colors.spaceDim} />
                 </Pressable>
-              )}
+              ) : null}
             </View>
 
-            {showMore && (
-              <View style={styles.more}>
-                <View style={styles.search}>
-                  <Icon name="search" size={15} color={Colors.spaceDim} />
-                  <TextInput
-                    value={query}
-                    onChangeText={setQuery}
-                    placeholder="Search interests"
-                    placeholderTextColor={Colors.spaceFaint}
-                    style={styles.searchInput}
-                    autoCorrect={false}
-                    autoCapitalize="none"
-                  />
-                </View>
-                <View style={styles.chips}>
-                  {moreInterests.map((t) => (
-                    <TagChip key={t.key} tag={t} tone="legend" selected={false} onPress={() => setTags((s) => toggle(s, t.key, MAX_INTERESTS))} />
-                  ))}
-                  {moreInterests.length === 0 ? <Text style={styles.none}>Nothing matches — try another word.</Text> : null}
-                </View>
+            {q !== '' ? (
+              <View style={styles.chips}>
+                {results.map((t) => (
+                  <TagChip key={t.key} tag={t} tone="legend" selected={tags.includes(t.key)} onPress={() => pickTag(t.key)} />
+                ))}
+                {results.length === 0 ? <Text style={styles.none}>Nothing matches — try another word.</Text> : null}
               </View>
+            ) : (
+              <>
+                {sections.map((s) => {
+                  const expanded = open.includes(s.key);
+                  // Featured chips, plus anything already picked so a pick never hides itself.
+                  const shown = expanded ? s.tags : s.tags.filter((t) => t.featured || tags.includes(t.key));
+                  const hidden = s.tags.length - shown.length;
+                  return (
+                    <View key={s.key}>
+                      <Text style={styles.sec}>{s.title}</Text>
+                      <View style={styles.chips}>
+                        {shown.map((t) => (
+                          <TagChip key={t.key} tag={t} tone="legend" selected={tags.includes(t.key)} onPress={() => pickTag(t.key)} />
+                        ))}
+                        {hidden > 0 ? (
+                          <Pressable
+                            style={styles.chip}
+                            onPress={() => setOpen((o) => [...o, s.key])}
+                            accessibilityRole="button"
+                            accessibilityLabel={`Show ${hidden} more in ${s.title}`}>
+                            <Icon name="plus" size={14} color={Colors.muted} />
+                            <Text style={styles.chipText}>{hidden}</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                })}
+
+                {heldProgram.length > 0 ? (
+                  <>
+                    <Text style={styles.sec}>From your field</Text>
+                    <View style={styles.chips}>
+                      {heldProgram.map((t) => (
+                        <TagChip key={t.key} tag={t} tone="legend" selected onPress={() => pickTag(t.key)} />
+                      ))}
+                    </View>
+                  </>
+                ) : null}
+
+                {/* Disciplines: what the lock-in picker and relics bucket by. Kept, but not the face of this step. */}
+                <Text style={styles.sec}>What you lock in on</Text>
+                <View style={styles.chips}>
+                  {byKind.discipline.map((t) => (
+                    <TagChip
+                      key={t.key}
+                      tag={t}
+                      tone="ember"
+                      selected={disciplines.includes(t.key)}
+                      onPress={() => setDisciplines((s) => toggle(s, t.key))}
+                    />
+                  ))}
+                </View>
+              </>
             )}
 
             {programTags.length > 0 ? (
               <Text style={styles.programNote}>
                 Your program already counts: {programTags.map(labelOf).join(', ')}
               </Text>
+            ) : null}
+
+            {/* Mock 378 · optional syncs. The tokens are ss5's (Settings → Connected apps); this only
+                points there, so skipping costs nothing. */}
+            {!editing ? (
+              <>
+                <Text style={styles.sec}>Connect (optional)</Text>
+                <View style={styles.chips}>
+                  <Pressable style={styles.chip} onPress={() => router.push('/connected-apps' as never)} accessibilityRole="button">
+                    <Icon name="music" size={14} color={Colors.muted} />
+                    <Text style={styles.chipText}>Spotify</Text>
+                  </Pressable>
+                  <Pressable style={styles.chip} onPress={() => router.push('/connected-apps' as never)} accessibilityRole="button">
+                    <Icon name="calendar" size={14} color={Colors.muted} />
+                    <Text style={styles.chipText}>Calendar</Text>
+                  </Pressable>
+                </View>
+              </>
             ) : null}
           </ScrollView>
 
@@ -259,19 +344,25 @@ export default function InterestsScreen() {
                 <Icon name="compass" size={16} color={Colors.green} />
                 <Text style={styles.matchText}>
                   <Text style={styles.matchStrong}>{picked} selected</Text>
+                  {tags.length >= MAX_INTERESTS ? ` · ${MAX_INTERESTS} interests max — tap one to swap it` : ''}
                 </Text>
               </View>
             ) : null}
+            {!editing && matchOn !== null ? <MatchingSwitch value={matchOn} onChange={setMatchOn} /> : null}
             <PrimaryButton
-              label="Continue"
+              label={editing ? 'Continue' : 'Find my people →'}
+              loading={saving}
               onPress={() => {
+                if (!editing) return void findMyPeople(false);
                 setSkippedA(false);
                 setStep(2);
               }}
             />
             <Pressable
               style={styles.skip}
+              disabled={saving}
               onPress={() => {
+                if (!editing) return void findMyPeople(true);
                 setSkippedA(true);
                 setStep(2);
               }}
@@ -312,232 +403,7 @@ export default function InterestsScreen() {
         </>
       )}
 
-      {step === 3 && <Reveal university={profile?.university ?? null} onDone={finish} />}
     </Screen>
-  );
-}
-
-// ─────────────────────────── step C — the payoff ───────────────────────────
-function Reveal({ university, onDone }: { university: string | null; onDone: () => void }) {
-  const { profile, refreshProfile } = useAuth();
-  // The competition opt-in (lib/competition) — written on the way out, only if switched on.
-  const [standings, setStandings] = useState(false);
-  const [discoverable, setDiscoverable] = useState<boolean | null>(null);
-  const [enabling, setEnabling] = useState(false);
-  const [matches, setMatches] = useState<GrindAlike[] | null>(null);
-  const [forests, setForests] = useState<SuggestedForest[] | null>(null);
-  const [pickedPeople, setPickedPeople] = useState<string[]>([]);
-  const [pickedForests, setPickedForests] = useState<string[]>([]);
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    fetchSuggestedForests(6)
-      .then((rows) => {
-        if (!live) return;
-        setForests(rows);
-        // Forests are low-stakes and leaving one is a tap — the top three start picked.
-        setPickedForests(rows.slice(0, 3).map((f) => f.id));
-      })
-      .catch(() => {
-        if (live) setForests([]);
-      });
-    fetchMyMatchSettings()
-      .then((s) => {
-        if (live) setDiscoverable(s.discoverable);
-      })
-      .catch(() => {
-        if (live) setDiscoverable(false);
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!discoverable) return;
-    let live = true;
-    fetchGrindAlikes(undefined, 5)
-      .then((rows) => {
-        if (live) setMatches(rows.filter((m) => !m.is_friend));
-      })
-      .catch(() => {
-        if (live) setMatches([]);
-      });
-    return () => {
-      live = false;
-    };
-  }, [discoverable]);
-
-  async function enableMatching() {
-    setEnabling(true);
-    try {
-      const s = await setMyMatchSettings({ discoverable: true });
-      setDiscoverable(s.discoverable);
-    } catch (e) {
-      setNote(getErrorMessage(e, "Couldn't turn matching on — you can from People like you later."));
-    } finally {
-      setEnabling(false);
-    }
-  }
-
-  async function saveStandings() {
-    if (!standings) return;
-    await setCompetitionOptIn(profile?.notification_prefs ?? null, true);
-    await refreshProfile();
-  }
-
-  // People are never pre-picked: a friend request is the person's own call, one tap each.
-  async function go() {
-    setBusy(true);
-    await Promise.allSettled([
-      ...pickedForests.map((id) => joinForest(id)),
-      ...pickedPeople.map((id) => sendFriendRequest(id)),
-      saveStandings(),
-    ]);
-    setBusy(false);
-    onDone();
-  }
-
-  async function skip() {
-    setBusy(true);
-    await saveStandings().catch(() => {});
-    setBusy(false);
-    onDone();
-  }
-
-  const school = university ? shortSchoolName(university) : null;
-  const label =
-    pickedPeople.length > 0 && pickedForests.length > 0
-      ? `Add ${pickedPeople.length} & join ${pickedForests.length} forest${pickedForests.length === 1 ? '' : 's'}`
-      : pickedPeople.length > 0
-        ? `Add ${pickedPeople.length} ${pickedPeople.length === 1 ? 'person' : 'people'}`
-        : pickedForests.length > 0
-          ? `Join ${pickedForests.length} forest${pickedForests.length === 1 ? '' : 's'}`
-          : 'Enter Philoi';
-
-  return (
-    <>
-      <ScrollView style={styles.flex} contentContainerStyle={styles.scroll}>
-        <Text style={styles.h}>Here&apos;s who to connect with.</Text>
-        <Text style={styles.sub}>
-          Based on what you&apos;re into, these clubs and people {school ? `at ${school} ` : ''}are a match. Join a few — it&apos;s
-          how Philoi comes alive.
-        </Text>
-
-        <Text style={styles.sec}>Clubs for you</Text>
-        {!forests ? (
-          <ActivityIndicator color={Colors.navEmber} style={styles.inlineSpin} />
-        ) : forests.length === 0 ? (
-          <Text style={styles.none}>Pick a few interests and we&apos;ll find your clubs — or browse forests from Discover.</Text>
-        ) : (
-          forests.map((f) => {
-            const on = pickedForests.includes(f.id);
-            const popular = f.member_count >= POPULAR_MEMBERS;
-            return (
-              <Pressable
-                key={f.id}
-                style={[styles.person, on && styles.personOn]}
-                onPress={() => setPickedForests((s) => toggle(s, f.id))}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${on ? 'Leave' : 'Join'} ${f.name}`}>
-                <View style={styles.clubTile}>
-                  <Text style={styles.clubEmoji}>{f.emoji}</Text>
-                </View>
-                <View style={styles.personBody}>
-                  <Text style={styles.personName} numberOfLines={1}>
-                    {f.name}
-                  </Text>
-                  <Text style={styles.personWhy} numberOfLines={1}>
-                    {f.purpose ? `${f.purpose} · ` : ''}
-                    {f.member_count} {f.member_count === 1 ? 'member' : 'members'}
-                    {f.visibility === 'request' ? ' · ask to join' : ''}
-                  </Text>
-                  {popular || f.because ? (
-                    <Text style={styles.clubWhy} numberOfLines={1}>
-                      {popular ? '★ Popular' : ''}
-                      {popular && f.because ? ' · ' : ''}
-                      {f.because ? `matches ${f.because}` : ''}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={[styles.addPill, on && styles.addPillOn]}>
-                  <Icon name={on ? 'check' : 'plus'} size={13} color={on ? '#1a1030' : Colors.muted} />
-                </View>
-              </Pressable>
-            );
-          })
-        )}
-
-        <Text style={styles.sec}>People like you{school ? ` at ${school}` : ''}</Text>
-        {discoverable === null ? (
-          <ActivityIndicator color={Colors.navEmber} style={styles.inlineSpin} />
-        ) : !discoverable ? (
-          <View style={styles.optIn}>
-            <Text style={styles.optInTitle}>Turn on matching to see them</Text>
-            <Text style={styles.optInBody}>
-              You&apos;ll show up for people {school ? `at ${school} ` : ''}who turned it on too — and only them. Off by default; change it
-              anytime in People like you.
-            </Text>
-            <PrimaryButton label="Turn on matching" loading={enabling} onPress={enableMatching} />
-          </View>
-        ) : !matches ? (
-          <ActivityIndicator color={Colors.navEmber} style={styles.inlineSpin} />
-        ) : matches.length === 0 ? (
-          <Text style={styles.none}>No one lines up yet — you&apos;re early. New people join every day; check People like you soon.</Text>
-        ) : (
-          matches.map((m) => {
-            const on = pickedPeople.includes(m.user_id);
-            return (
-              <Pressable
-                key={m.user_id}
-                style={[styles.person, on && styles.personOn]}
-                onPress={() => setPickedPeople((s) => toggle(s, m.user_id))}
-                accessibilityRole="button"
-                accessibilityState={{ selected: on }}
-                accessibilityLabel={`${on ? 'Remove' : 'Add'} ${m.display_name}`}>
-                <MatchAvatar name={m.display_name} avatarUrl={m.avatar_url} size={36} live={m.live} />
-                <View style={styles.personBody}>
-                  <Text style={styles.personName} numberOfLines={1}>
-                    {m.handle ? `@${m.handle}` : m.display_name}
-                  </Text>
-                  <Text style={styles.personWhy} numberOfLines={1}>
-                    {m.reasons
-                      .slice(0, 3)
-                      .map((r) => r.label)
-                      .join(' · ')}
-                  </Text>
-                </View>
-                {SHOW_ALIKE_SCORE ? <Text style={styles.pct}>{Math.round(m.score)}%</Text> : null}
-                <View style={[styles.addPill, on && styles.addPillOn]}>
-                  <Icon name={on ? 'check' : 'plus'} size={13} color={on ? '#1a1030' : Colors.muted} />
-                </View>
-              </Pressable>
-            );
-          })
-        )}
-
-        {note ? <Text style={styles.error}>{note}</Text> : null}
-
-        {/* The one competition beat in onboarding — opt-in, off by default (lib/competition). */}
-        <View style={styles.standings}>
-          <View style={styles.personBody}>
-            <Text style={styles.personName}>Show me global standings</Text>
-            <Text style={styles.personWhy}>Off keeps Standings to your friends. Change it any time in Settings.</Text>
-          </View>
-          <Toggle value={standings} onValueChange={setStandings} />
-        </View>
-      </ScrollView>
-
-      <View style={styles.foot}>
-        <PrimaryButton label={label} loading={busy} onPress={go} />
-        <Pressable style={styles.skip} onPress={() => void skip()} accessibilityRole="button" disabled={busy}>
-          <Text style={styles.skipText}>Skip — I&apos;ll find people later</Text>
-        </Pressable>
-      </View>
-    </>
   );
 }
 
@@ -670,9 +536,6 @@ const styles = StyleSheet.create({
   },
   chipTextLegend: {
     color: Colors.ink,
-  },
-  more: {
-    marginTop: Spacing.twelve,
   },
   search: {
     flexDirection: 'row',

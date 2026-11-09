@@ -40,6 +40,23 @@ export default function NotificationsScreen() {
     [allItems, competing]
   );
 
+  // Mock 352: grouped Today / Earlier, one header each, community-first rows unchanged.
+  const rows = useMemo(() => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const out: ({ kind: 'header'; key: string; label: string } | { kind: 'n'; key: string; n: NotificationEvent })[] = [];
+    let section: 'today' | 'earlier' | null = null;
+    for (const n of items) {
+      const s = new Date(n.created_at) >= startOfToday ? 'today' : 'earlier';
+      if (s !== section) {
+        section = s;
+        out.push({ kind: 'header', key: `h:${s}`, label: s === 'today' ? 'Today' : 'Earlier' });
+      }
+      out.push({ kind: 'n', key: n.id, n });
+    }
+    return out;
+  }, [items]);
+
   useEffect(() => {
     // Load and clear the badge together. markAllRead refetches, so this is one round trip, not two.
     markAllRead();
@@ -72,7 +89,7 @@ export default function NotificationsScreen() {
   return (
     // Top edge only: the global footer owns the bottom inset.
     <Screen padded={false} edges={['top']}>
-      <SpaceHeader title="Activity" />
+      <SpaceHeader title="Notifications" />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -80,8 +97,8 @@ export default function NotificationsScreen() {
       <PushOffBanner />
 
       <FlatList
-        data={items}
-        keyExtractor={(n) => n.id}
+        data={rows}
+        keyExtractor={(r) => r.key}
         contentContainerStyle={items.length === 0 ? styles.emptyWrap : styles.list}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refreshItems} tintColor={Colors.navEmber} />}
         ListEmptyComponent={
@@ -95,7 +112,13 @@ export default function NotificationsScreen() {
             </View>
           )
         }
-        renderItem={({ item }) => <Row n={item} onPress={() => open(item)} />}
+        renderItem={({ item }) =>
+          item.kind === 'header' ? (
+            <Text style={styles.section}>{item.label}</Text>
+          ) : (
+            <Row n={item.n} onPress={() => open(item.n)} />
+          )
+        }
       />
     </Screen>
   );
@@ -269,6 +292,15 @@ const SHAPE_STYLE: Record<NotificationImageShape, { borderRadius: number }> = {
 const ART = 44;
 
 const styles = StyleSheet.create({
+  section: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12.5,
+    color: Colors.spaceDim,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: Spacing.two,
+    marginBottom: 2,
+  },
   error: {
     fontFamily: Fonts.body,
     fontSize: 12.5,

@@ -2,14 +2,14 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 
 import { ImmersiveFeed } from '@/components/agora/immersive-feed';
-import { FindYourPeople } from '@/components/discover/find-your-people';
+import { SearchBoard } from '@/components/discover/search-board';
 
-// DISCOVER = FIND YOUR PEOPLE (Phase 8.3, mock 336). The route keeps its `social` filename because a
+// SEARCH = THE DISCOVERY BOARD (ShareSpot ss2, mock 345; was Phase 8.3's Discover). The route keeps its `social` filename because a
 // campfire's "posts" button and installed builds deep-link /social?channel=campfire:<id>.
 //
 // Two states, one tab:
-//   • 'people' — the landing: search, your interest chips, People like you, Clubs for you
-//     (components/discover/find-your-people.tsx). Match-first, not an infinite scroll.
+//   • 'people' — the landing: the discovery board — People / Rooms / Clubs / Posts swipe rows
+//     (components/discover/search-board.tsx). Match-first, not an infinite scroll.
 //   • 'feed'   — the immersive Agora (mocks 317/326), unchanged, one tap below the matches; its bar's
 //     ‹ People returns. No algorithm and no like button: the tab picks the sources, the server orders
 //     them newest first (get_agora_feed, 0280), and nothing is ranked or injected.
@@ -37,7 +37,7 @@ export default function DiscoverScreen() {
     setView('feed');
   }
 
-  if (view === 'people') return <FindYourPeople onOpenFeed={() => setView('feed')} />;
+  if (view === 'people') return <SearchBoard onOpenFeed={() => setView('feed')} />;
 
   return (
     <ImmersiveFeed

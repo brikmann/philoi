@@ -1,183 +1,171 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { CampfirePreviewSheet } from '@/components/campfire-preview-sheet';
-import { AppTopBar } from '@/components/nav/app-top-bar';
-import { Avatar } from '@/components/ui/avatar';
-import { Icon, IconText } from '@/components/ui/icon';
+import { CoverCard, EmptyLine, ErrorLine, JoinButton, PersonRow, useAddFriend, useJoin } from '@/components/discover/kit';
+import { PostTile } from '@/components/discover/post-tile';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { fetchSuggestedPeople, searchPeople, type PersonSearchResult, type SuggestedPerson } from '@/lib/api/friend-requests';
+import {
+  fetchDiscoverRooms,
+  joinClub,
+  joinRoomFromCard,
+  openCampfire,
+  openClub,
+  openRoom,
+  searchAgoraPosts,
+  searchPeopleByInterest,
+  type DiscoverRoom,
+} from '@/lib/api/discover';
 import { fetchForests } from '@/lib/api/forests';
-import { fetchDiscoverableGroups } from '@/lib/api/groups';
-import { fetchProgramsForUniversity } from '@/lib/api/house';
-import { searchExerciseLibrary } from '@/lib/api/stats';
-import { useAuth } from '@/lib/auth/auth-context';
-import type { DiscoverableGroup } from '@/types/database';
-import type { ExerciseLibraryRow, ProgramRow } from '@/types/house';
+import { searchPeople } from '@/lib/api/friend-requests';
+import type { AgoraItem } from '@/types/database';
 import type { ForestSummary } from '@/types/social';
 
-// SEARCH (nav restructure, mocks 302/303) — find anything, over the search endpoints that already
-// exist. Its own screen, pushed from the 🔍 in the top bar on every tab (pre-submission fix E11):
-// a real page you go back from, not a tab swapped in over the one you were on. Its categories are a
-// DISCOVERY axis and live only here — they are not the feed's scope chips. Over the endpoints that
-// already exist: search_people, get_programs_for_university, search_exercise_library, get_forests (0274) and
-// the discoverable-campfires list. Nothing new server-side. Grind-alikes (0275) is the discovery
-// card on the empty state.
+// SEARCH · ACTIVE + AUTO-DETECT (ShareSpot ss2, mock 349). One query, all four surfaces: typing
+// "running" doesn't pick a category — it surfaces people with Running on their profile (and anyone
+// named it), run clubs and rooms, and posts about running, grouped. The People / Rooms / Clubs /
+// Posts chips narrow it. Opened from the board's bar (345) or with ?q= from a chip anywhere.
+//
+// Server: search_people (names), 0299's search_people_by_interest + search_agora_posts, get_forests
+// (name + tags) for clubs, and 0297's get_discoverable_rooms for rooms. Each degrades to empty on a
+// server that predates it; nothing is ranked by engagement.
 
-type Category = 'all' | 'people' | 'programs' | 'exercises' | 'forests' | 'campfires';
+type Filter = 'all' | 'people' | 'rooms' | 'clubs' | 'posts';
 
-const CATEGORIES: { key: Category; label: string }[] = [
+const FILTERS: { key: Filter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'people', label: 'People' },
-  { key: 'programs', label: 'Programs' },
-  { key: 'exercises', label: 'Exercises' },
-  { key: 'forests', label: 'Forests' },
-  { key: 'campfires', label: 'Campfires' },
+  { key: 'rooms', label: 'Rooms' },
+  { key: 'clubs', label: 'Clubs' },
+  { key: 'posts', label: 'Posts' },
 ];
 
-type Results = {
-  people: PersonSearchResult[];
-  programs: ProgramRow[];
-  exercises: ExerciseLibraryRow[];
-  campfires: DiscoverableGroup[];
-  forests: ForestSummary[];
+type Person = {
+  user_id: string;
+  display_name: string;
+  handle: string | null;
+  avatar_url: string | null;
+  sub: string | null;
+  is_friend: boolean;
 };
 
-const EMPTY: Results = { people: [], programs: [], exercises: [], campfires: [], forests: [] };
+type Results = { people: Person[]; rooms: DiscoverRoom[]; clubs: ForestSummary[]; posts: AgoraItem[] };
 
-export default function SearchTab() {
+const EMPTY: Results = { people: [], rooms: [], clubs: [], posts: [] };
+
+export default function SearchScreen() {
   const router = useRouter();
-  const { profile } = useAuth();
-  // Phase 8.3 · Discover's interest chips open this with the interest as the query (?q=Running).
-  const { q } = useLocalSearchParams<{ q?: string }>();
+  const { q, filter: initialFilter } = useLocalSearchParams<{ q?: string; filter?: string }>();
   const [query, setQuery] = useState(() => (typeof q === 'string' ? q : ''));
-  const [category, setCategory] = useState<Category>('all');
-  // Results remember which query + category they answer, so "loading" is derived (results are
-  // for something other than what's typed) rather than set synchronously inside the effect.
+  const [filter, setFilter] = useState<Filter>(() =>
+    FILTERS.some((f) => f.key === initialFilter) ? (initialFilter as Filter) : 'all',
+  );
+  // Results remember the query they answer, so "loading" is derived rather than set in the effect.
   const [answered, setAnswered] = useState<{ key: string; results: Results }>({ key: '', results: EMPTY });
-  const [suggested, setSuggested] = useState<SuggestedPerson[]>([]);
-  const [programs, setPrograms] = useState<ProgramRow[]>([]);
-  const [activeForests, setActiveForests] = useState<ForestSummary[]>([]);
-  const [previewGroupId, setPreviewGroupId] = useState<string | null>(null);
   const seq = useRef(0);
+  const adds = useAddFriend();
+  const joins = useJoin();
+
+  const term = query.trim().replace(/^#/, '');
 
   useEffect(() => {
-    fetchSuggestedPeople(6)
-      .then(setSuggested)
-      .catch(() => setSuggested([]));
-  }, []);
-
-  // What the Forests chip shows before anything is typed: the most active ones.
-  useEffect(() => {
-    fetchForests('active')
-      .then((f) => setActiveForests(f.slice(0, 12)))
-      .catch(() => setActiveForests([]));
-  }, []);
-
-  // Programs are per school and small, so they're fetched once and filtered here.
-  useEffect(() => {
-    if (!profile?.university) return;
-    fetchProgramsForUniversity(profile.university)
-      .then(setPrograms)
-      .catch(() => setPrograms([]));
-  }, [profile?.university]);
-
-  const trimmed = query.trim();
-
-  const searchKey = `${category}:${trimmed}`;
-
-  useEffect(() => {
-    if (trimmed.length < 2) return;
+    if (term.length < 2) return;
     const mine = ++seq.current;
-    // Debounced: one round of requests per pause in typing, not per keystroke. Only the newest
-    // round may land, so a slow answer for "ben" can't paint over "bench press".
+    // Debounced: one round per pause in typing. Only the newest round may land. Every surface is
+    // fetched regardless of the chip, so flipping chips is instant and never refetches.
     const timer = setTimeout(() => {
-      const want = (c: Category) => category === 'all' || category === c;
       Promise.all([
-        want('people') ? searchPeople(trimmed, 12).catch(() => []) : Promise.resolve([]),
-        want('exercises') ? searchExerciseLibrary(trimmed, 12).catch(() => []) : Promise.resolve([]),
-        want('campfires') ? fetchDiscoverableGroups(undefined, trimmed, 12).catch(() => []) : Promise.resolve([]),
-        want('forests') ? fetchForests('active', trimmed).catch(() => []) : Promise.resolve([]),
-      ]).then(([people, exercises, campfires, forests]) => {
+        searchPeople(term, 12).catch(() => []),
+        searchPeopleByInterest(term, 12).catch(() => []),
+        fetchDiscoverRooms(term, 12).catch(() => []),
+        fetchForests('active', term).catch(() => []),
+        searchAgoraPosts(term, null, 12).catch(() => []),
+      ]).then(([named, tagged, rooms, clubs, posts]) => {
         if (mine !== seq.current) return;
-        setAnswered({
-          key: `${category}:${trimmed}`,
-          results: { people, exercises, campfires, forests: forests.slice(0, 12), programs: [] },
-        });
+        // Tagged people lead (that's the auto-detect), then name matches not already shown.
+        const people: Person[] = tagged.map((p) => ({
+          user_id: p.user_id,
+          display_name: p.display_name,
+          handle: p.handle,
+          avatar_url: p.avatar_url,
+          sub: [p.patron_name, p.program_abbrev, `tagged ‘${p.matched_label}’`].filter(Boolean).join(' · '),
+          is_friend: p.is_friend,
+        }));
+        const seen = new Set(people.map((p) => p.user_id));
+        for (const p of named) {
+          if (seen.has(p.user_id)) continue;
+          people.push({
+            user_id: p.user_id,
+            display_name: p.display_name,
+            handle: p.handle,
+            avatar_url: p.avatar_url,
+            sub: [p.handle ? `@${p.handle}` : null, p.university].filter(Boolean).join(' · ') || null,
+            is_friend: p.relationship === 'friends',
+          });
+        }
+        setAnswered({ key: term, results: { people, rooms, clubs: clubs.slice(0, 12), posts } });
       });
     }, 280);
     return () => clearTimeout(timer);
-  }, [trimmed, category]);
+  }, [term]);
 
-  const programHits = useMemo(() => {
-    if (trimmed.length < 2 || !(category === 'all' || category === 'programs')) return [];
-    const q = trimmed.toLowerCase();
-    return programs.filter((p) =>
-      [p.name, p.program_abbrev, p.patron_name].some((s) => (s ?? '').toLowerCase().includes(q))
-    );
-  }, [programs, trimmed, category]);
-
-  const hasQuery = trimmed.length >= 2;
-  const loading = hasQuery && answered.key !== searchKey;
-  const results = hasQuery && !loading ? answered.results : EMPTY;
-  const nothing =
-    hasQuery &&
-    !loading &&
-    results.people.length + results.exercises.length + results.campfires.length + results.forests.length + programHits.length === 0;
+  const hasQuery = term.length >= 2;
+  const loading = hasQuery && answered.key !== term;
+  const r = hasQuery && !loading ? answered.results : EMPTY;
+  const show = (f: Filter) => filter === 'all' || filter === f;
+  const total =
+    (show('people') ? r.people.length : 0) +
+    (show('rooms') ? r.rooms.length : 0) +
+    (show('clubs') ? r.clubs.length : 0) +
+    (show('posts') ? r.posts.length : 0);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      {/* A pushed screen: close goes back to wherever you opened it. A cold deep link has nothing
-          to go back to, so it lands on Social, where search used to live. */}
-      <AppTopBar
-        title="Search"
-        right={
-          <Pressable
-            onPress={() => (router.canGoBack() ? router.back() : router.navigate('/social'))}
-            hitSlop={10}
-            accessibilityRole="button"
-            accessibilityLabel="Close search">
-            <Ionicons name="close" size={20} color={Colors.ink} />
-          </Pressable>
-        }
-      />
-
-      <View style={styles.bar}>
-        <NavGlyph name="search" size={18} color={Colors.spaceDim} />
-        <TextInput
-          style={styles.input}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search people, programs, exercises…"
-          placeholderTextColor={Colors.spaceFaint}
-          autoCorrect={false}
-          autoCapitalize="none"
-          returnKeyType="search"
-        />
-        {query ? (
-          <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Clear search">
-            <Ionicons name="close-circle" size={17} color={Colors.spaceFaint} />
-          </Pressable>
-        ) : null}
+      <View style={styles.top}>
+        <View style={styles.bar}>
+          <NavGlyph name="search" size={17} color={Colors.spaceDim} />
+          <TextInput
+            style={styles.input}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search people, rooms, clubs, posts…"
+            placeholderTextColor={Colors.spaceFaint}
+            autoCorrect={false}
+            autoCapitalize="none"
+            autoFocus={!q}
+            returnKeyType="search"
+            accessibilityLabel="Search"
+          />
+          {query ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search">
+              <Ionicons name="close-circle" size={17} color={Colors.spaceFaint} />
+            </Pressable>
+          ) : null}
+        </View>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.navigate('/social'))}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="Close search">
+          <Text style={styles.cancel}>Cancel</Text>
+        </Pressable>
       </View>
 
       <View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cats}>
-          {CATEGORIES.map((c) => {
-            const on = c.key === category;
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {FILTERS.map((f) => {
+            const on = f.key === filter;
             return (
               <Pressable
-                key={c.key}
-                onPress={() => setCategory(c.key)}
-                style={[styles.cat, on && styles.catOn]}
+                key={f.key}
+                onPress={() => setFilter(f.key)}
+                style={[styles.chip, on && styles.chipOn]}
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}>
-                <Text style={[styles.catText, on && styles.catTextOn]}>{c.label}</Text>
+                <Text style={[styles.chipText, on && styles.chipTextOn]}>{f.label}</Text>
               </Pressable>
             );
           })}
@@ -185,321 +173,135 @@ export default function SearchTab() {
       </View>
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {!hasQuery && (category === 'all' || category === 'people') ? (
-          <>
-            {/* Grind-alikes (0275, mock 299) — the discovery entry: match shelf → why you match →
-                Add friend / Challenge, all on its own screens. */}
-            <Pressable
-              style={styles.ga}
-              onPress={() => router.push('/grind-alikes' as never)}
-              accessibilityRole="button"
-              accessibilityLabel="Find people like you">
-              <IconText icon="compass" style={styles.gaTitle}>
-                People like you
-              </IconText>
-              <Text style={styles.gaBody}>Students who lock in like you</Text>
-              <Text style={styles.gaGo}>Find your people →</Text>
-            </Pressable>
+        {!hasQuery ? (
+          <Text style={styles.hint}>Try a vibe — “running”, “anime”, “KP344”. We’ll look across people, rooms, clubs and posts at once.</Text>
+        ) : null}
+        {loading ? <ActivityIndicator color={Colors.navEmber} style={styles.loader} /> : null}
 
-            {suggested.length > 0 ? <Text style={styles.section}>Suggested</Text> : null}
-            {suggested.map((p) => (
-              <ResultRow
+        {show('people') && r.people.length > 0 ? (
+          <>
+            <Text style={styles.section}>People</Text>
+            {r.people.map((p) => (
+              <PersonRow
                 key={p.user_id}
+                name={p.display_name}
                 avatarUrl={p.avatar_url}
-                initials={initialsOf(p.display_name)}
-                title={p.display_name}
-                sub={p.mutual_circle_name ? `In ${p.mutual_circle_name}` : p.handle ? `@${p.handle}` : null}
-                onPress={() => router.push({ pathname: '/friend-profile', params: { userId: p.user_id } })}
+                sub={p.sub}
+                isFriend={p.is_friend}
+                addState={adds.state[p.user_id]}
+                onAdd={() => adds.add(p.user_id)}
+                onPress={() => openCampfire(router, { userId: p.user_id, handle: p.handle })}
               />
             ))}
+            <ErrorLine message={adds.error} />
           </>
         ) : null}
 
-        {!hasQuery && category === 'forests' ? (
+        {(show('clubs') && r.clubs.length > 0) || (show('rooms') && r.rooms.length > 0) ? (
+          <Text style={styles.section}>{filter === 'rooms' ? 'Rooms' : filter === 'clubs' ? 'Clubs' : 'Clubs & rooms'}</Text>
+        ) : null}
+        <View style={styles.cards}>
+          {show('clubs')
+            ? r.clubs.map((c) => (
+                <CoverCard
+                  key={c.id}
+                  id={c.id}
+                  emoji={c.emoji}
+                  title={c.name}
+                  tagline={c.purpose}
+                  sub={`Club · ${c.member_count} ${c.member_count === 1 ? 'member' : 'members'}`}
+                  online={c.locked_in_now}
+                  onPress={() => openClub(router, c.id)}
+                  action={
+                    c.my_status === 'active' ? undefined : (
+                      <JoinButton label={c.name} state={joins.state[c.id]} onPress={() => joins.run(c.id, () => joinClub(c.id))} />
+                    )
+                  }
+                />
+              ))
+            : null}
+          {show('rooms')
+            ? r.rooms.map((room) => (
+                <CoverCard
+                  key={room.id}
+                  id={room.id}
+                  emoji={room.emoji}
+                  title={room.name}
+                  sub={`Room · ${room.member_count} ${room.member_count === 1 ? 'member' : 'members'}${room.course_code ? ` · ${room.course_code}` : ''}`}
+                  online={room.online_count}
+                  locked={room.join_policy === 'code'}
+                  onPress={() => openRoom(router, room.id)}
+                  action={
+                    room.is_member ? undefined : (
+                      <JoinButton
+                        label={room.name}
+                        state={joins.state[room.id]}
+                        onPress={() => joins.run(room.id, () => joinRoomFromCard(router, room.id))}
+                      />
+                    )
+                  }
+                />
+              ))
+            : null}
+        </View>
+        <ErrorLine message={joins.error} />
+
+        {show('posts') && r.posts.length > 0 ? (
           <>
-            {activeForests.length > 0 ? <Text style={styles.section}>Active now</Text> : null}
-            {activeForests.map((f) => (
-              <ForestRow key={f.id} forest={f} onPress={() => router.push({ pathname: '/forest/[id]', params: { id: f.id } } as never)} />
-            ))}
+            <Text style={styles.section}>Posts</Text>
+            <View style={styles.cards}>
+              {r.posts.map((p) => (
+                <PostTile key={p.id} item={p} topic={term} wide />
+              ))}
+            </View>
           </>
         ) : null}
 
-        {!hasQuery && category !== 'all' && category !== 'people' && category !== 'forests' ? (
-          <Text style={styles.hint}>Type at least two letters to search.</Text>
-        ) : null}
-
-        {hasQuery && loading ? <ActivityIndicator color={Colors.navEmber} style={styles.loader} /> : null}
-
-        {results.people.length > 0 ? <Text style={styles.section}>People</Text> : null}
-        {results.people.map((p) => (
-          <ResultRow
-            key={p.user_id}
-            avatarUrl={p.avatar_url}
-            initials={initialsOf(p.display_name)}
-            title={p.display_name}
-            sub={[p.handle ? `@${p.handle}` : null, p.university].filter(Boolean).join(' · ') || null}
-            onPress={() => router.push({ pathname: '/friend-profile', params: { userId: p.user_id } })}
-          />
-        ))}
-
-        {programHits.length > 0 ? <Text style={styles.section}>Programs</Text> : null}
-        {programHits.map((p) => (
-          <ResultRow
-            key={p.program_id}
-            title={p.name}
-            // Phase 9: a program is the pride badge, not a house — no patron on its row.
-            sub={p.program_abbrev ?? null}
-            onPress={() => router.push('/house/change-program')}
-          />
-        ))}
-
-        {results.exercises.length > 0 ? <Text style={styles.section}>Exercises</Text> : null}
-        {results.exercises.map((e) => (
-          <ResultRow
-            key={e.slug}
-            leading={
-              <View style={styles.emojiTile}>
-                <Icon name="gym" size={20} color={Colors.ink} />
-              </View>
-            }
-            title={e.name}
-            sub={`Exercise board · ${e.lifters} ranked`}
-            onPress={() =>
-              router.push({
-                pathname: '/fitness/exercise',
-                params: { slug: e.slug, name: e.name, unit: e.unit, muscle: e.muscle_group ?? '' },
-              })
-            }
-          />
-        ))}
-
-        {results.forests.length > 0 ? <Text style={styles.section}>Forests</Text> : null}
-        {results.forests.map((f) => (
-          <ForestRow key={f.id} forest={f} onPress={() => router.push({ pathname: '/forest/[id]', params: { id: f.id } } as never)} />
-        ))}
-
-        {results.campfires.length > 0 ? <Text style={styles.section}>Campfires</Text> : null}
-        {results.campfires.map((g) => (
-          <ResultRow
-            key={g.id}
-            emoji={g.emoji}
-            title={g.name}
-            sub={`${g.member_count} ${g.member_count === 1 ? 'member' : 'members'}`}
-            onPress={() => setPreviewGroupId(g.id)}
-          />
-        ))}
-
-        {nothing ? <Text style={styles.hint}>Nothing for “{trimmed}”.</Text> : null}
+        {hasQuery && !loading && total === 0 ? <EmptyLine>Nothing for “{term}” yet.</EmptyLine> : null}
       </ScrollView>
-
-      <CampfirePreviewSheet groupId={previewGroupId} onClose={() => setPreviewGroupId(null)} />
     </SafeAreaView>
   );
 }
 
-function ForestRow({ forest, onPress }: { forest: ForestSummary; onPress: () => void }) {
-  const live = forest.locked_in_now > 0 ? ` · ${forest.locked_in_now} locked in` : '';
-  return (
-    <ResultRow
-      emoji={forest.emoji}
-      title={forest.name}
-      sub={`${forest.member_count} ${forest.member_count === 1 ? 'member' : 'members'}${live}`}
-      onPress={onPress}
-    />
-  );
-}
-
-function initialsOf(name: string | null | undefined): string {
-  return (name || '?')
-    .split(/\s+/)
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-function ResultRow({
-  avatarUrl,
-  initials,
-  emoji,
-  leading,
-  title,
-  sub,
-  onPress,
-}: {
-  avatarUrl?: string | null;
-  initials?: string;
-  emoji?: string;
-  leading?: React.ReactNode;
-  title: string;
-  sub: string | null;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable style={styles.row} onPress={onPress} accessibilityRole="button">
-      {leading ??
-        (avatarUrl ? (
-          <Image source={{ uri: avatarUrl }} style={styles.avatar} contentFit="cover" />
-        ) : emoji ? (
-          <View style={styles.emojiTile}>
-            <Text style={styles.emoji}>{emoji}</Text>
-          </View>
-        ) : (
-          <Avatar label={initials ?? '?'} size={36} />
-        ))}
-      <View style={styles.rowText}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {title}
-        </Text>
-        {sub ? (
-          <Text style={styles.rowSub} numberOfLines={1}>
-            {sub}
-          </Text>
-        ) : null}
-      </View>
-      <Ionicons name="chevron-forward" size={14} color={Colors.spaceFaint} />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  // Opaque: a full screen of its own, not a translucent layer over the page you came from.
-  safe: {
-    flex: 1,
-    backgroundColor: Colors.spaceBg,
+  safe: { flex: 1, backgroundColor: Colors.spaceBg },
+  top: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.twelve,
+    paddingHorizontal: Spacing.three,
+    paddingTop: Spacing.two,
   },
   bar: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
-    marginHorizontal: Spacing.three,
-    paddingHorizontal: Spacing.twelve,
-    paddingVertical: 10,
-    borderRadius: 14,
+    height: 46,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
     backgroundColor: Colors.spacePanel,
     borderWidth: 1,
-    borderColor: Colors.spaceLine,
+    borderColor: Colors.navEmber,
   },
-  input: {
-    flex: 1,
-    padding: 0,
-    fontFamily: Fonts.body,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  cats: {
-    gap: 6,
+  input: { flex: 1, fontFamily: Fonts.body, fontSize: 15, color: Colors.ink, paddingVertical: 0 },
+  cancel: { fontFamily: Fonts.bodySemiBold, fontSize: 15, color: Colors.muted },
+  chips: { gap: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.twelve },
+  chip: {
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.twelve,
-  },
-  cat: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    height: 34,
+    justifyContent: 'center',
     borderRadius: Radius.pill,
     backgroundColor: Colors.spacePanel,
     borderWidth: 1,
     borderColor: Colors.spaceLine,
   },
-  catOn: {
-    backgroundColor: 'rgba(255,122,47,0.12)',
-    borderColor: Colors.navEmber,
-  },
-  catText: {
-    fontFamily: Fonts.bodySemiBold,
-    fontSize: 12.5,
-    color: Colors.spaceDim,
-  },
-  catTextOn: {
-    color: Colors.navEmber2,
-  },
-  body: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: 6,
-  },
-  ga: {
-    padding: Spacing.three,
-    borderRadius: 16,
-    backgroundColor: 'rgba(185,139,255,0.08)',
-    borderWidth: 1,
-    borderColor: '#3A2D5A',
-    gap: 4,
-    marginBottom: Spacing.two,
-  },
-  gaTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 15,
-    color: Colors.ink,
-  },
-  gaBody: {
-    fontFamily: Fonts.body,
-    fontSize: 12.5,
-    color: Colors.spaceDim,
-  },
-  gaGo: {
-    marginTop: 4,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 12,
-    color: Colors.legend,
-  },
-  section: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 10.5,
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    color: Colors.spaceFaint,
-    marginTop: Spacing.twelve,
-    marginBottom: 2,
-  },
-  hint: {
-    marginTop: Spacing.four,
-    textAlign: 'center',
-    fontFamily: Fonts.body,
-    fontSize: 13,
-    color: Colors.spaceDim,
-  },
-  loader: {
-    marginTop: Spacing.four,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.twelve,
-    paddingVertical: 10,
-    paddingHorizontal: Spacing.twelve,
-    borderRadius: 13,
-    backgroundColor: Colors.spacePanel,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-  },
-  emojiTile: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: Colors.spacePanel2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emoji: {
-    fontSize: 18,
-  },
-  rowText: {
-    flex: 1,
-    gap: 2,
-  },
-  rowTitle: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  rowSub: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.spaceDim,
-  },
+  chipOn: { backgroundColor: Colors.navEmber2, borderColor: Colors.navEmber2 },
+  chipText: { fontFamily: Fonts.bodySemiBold, fontSize: 14, color: Colors.muted },
+  chipTextOn: { color: Colors.onEmber },
+  body: { paddingHorizontal: Spacing.three, paddingBottom: 120 },
+  section: { marginTop: Spacing.three, marginBottom: Spacing.two, fontFamily: Fonts.bodyBold, fontSize: 16, color: Colors.ink },
+  cards: { gap: Spacing.twelve },
+  hint: { marginTop: Spacing.three, fontFamily: Fonts.body, fontSize: 14, lineHeight: 20, color: Colors.spaceDim },
+  loader: { marginTop: Spacing.four },
 });

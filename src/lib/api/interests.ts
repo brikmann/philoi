@@ -15,9 +15,32 @@ export type VocabTag = {
   sub: string | null;
   icon: string;
   featured: boolean;
+  /**
+   * Interest tags only (0296): the picker section, a key of INTEREST_CATEGORIES — or 'program', the
+   * academic tags your program implies, which aren't browsed. Absent from a pre-0296 server.
+   */
+  category?: string | null;
   /** Forests this tag would find for you. */
   forest_count: number;
 };
+
+// The ten picker sections (0296, mock 339), in the order they render. Hobbies lead, not disciplines.
+// A category key this build doesn't list lands in the trailing "More" section rather than vanishing.
+export const INTEREST_CATEGORIES: readonly { key: string; title: string }[] = [
+  { key: 'active', title: 'Active & sport' },
+  { key: 'mind', title: 'Mind & study' },
+  { key: 'finance', title: 'Finance' },
+  { key: 'create', title: 'Create' },
+  { key: 'play', title: 'Play & games' },
+  { key: 'culture', title: 'Culture & media' },
+  { key: 'food', title: 'Food & going out' },
+  { key: 'outdoors', title: 'Outdoors & travel' },
+  { key: 'people', title: 'People & purpose' },
+  { key: 'pets', title: 'Pets & life' },
+];
+
+/** Academic tags the program fold reads (Pre-med, Kinesiology …): searchable, never a browse section. */
+export const PROGRAM_CATEGORY = 'program';
 
 export type MyInterests = {
   disciplines: string[];
@@ -84,6 +107,9 @@ const KNOWN_ICONS = new Set<string>([
   'study', 'read', 'gym', 'run', 'deep-work', 'timer', 'heart', 'bolt', 'chat', 'chart', 'sparkle',
   'compass', 'hand', 'shield', 'card', 'sprout', 'notes', 'edit', 'music', 'clock', 'flame', 'trophy',
   'friends', 'campus', 'target', 'streak', 'session', 'forest',
+  // 0296's broad taxonomy
+  'sun', 'moon', 'star', 'up', 'flag', 'versus', 'challenge', 'globe', 'plane', 'megaphone', 'temple',
+  'hammer', 'home', 'palette', 'camera', 'video', 'photo', 'play', 'phone', 'box', 'bag',
 ]);
 
 export function vocabIcon(name: string | null | undefined): IconName {

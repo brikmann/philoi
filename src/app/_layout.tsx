@@ -591,9 +591,23 @@ function RootNavigator() {
         {/* Nav restructure: the ✈ inbox. (The old Home / Leaderboard screens it once kept as
             /your-fire and /all-boards are gone — ui_pass2 §8.) */}
         <Stack.Screen name="messages" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* ShareSpot ss1 · Rooms (374/375/380/384, 0297) + Friends (370) + Invite (369). Each draws its own header. */}
+        <Stack.Screen name="room/[id]/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="room/[id]/chat" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="room/[id]/code" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="room/[id]/manage" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="friends" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="invite" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* Search (E11): the top bar's 🔍 pushes it from any tab. Same /search path it had as a hidden
             tab, so installed builds' links still land. */}
         <Stack.Screen name="search" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        {/* ShareSpot ss2 · Discover: browse pages (354–357), matchmaking (383), your people (379). */}
+        <Stack.Screen name="discover/people" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="discover/rooms" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="discover/clubs" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="discover/posts" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="discover/matchmaking" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
+        <Stack.Screen name="discover/your-people" options={{ headerShown: false, gestureEnabled: false, contentStyle: headerlessContentStyle }} />
         {/* The Agora (AGORA_SPEC) — the town square, a Social destination beside Campfires and
             Friends. The composer is a modal so posting reads as an interruption you return from,
             not as somewhere you navigated to. */}
