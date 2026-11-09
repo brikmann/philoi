@@ -23,6 +23,7 @@ import {
   AgoraLockInPicker,
   type AchievementChoice,
 } from '@/components/agora/agora-pickers';
+import { ArtTagSheet } from '@/components/post/art-tag-sheet';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { AGORA_VIDEO_ENABLED } from '@/constants/feature-flags';
@@ -30,6 +31,7 @@ import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { announceAgoraPost } from '@/lib/agora-just-posted';
 import { createAgoraPost } from '@/lib/api/agora';
+import { ART_KIND_LABEL, resolveArt, type ArtEntity } from '@/lib/api/art';
 import {
   AGORA_VIDEO_MAX_SECONDS,
   AgoraVideoLimitError,
@@ -95,6 +97,19 @@ import type { Anthem, FeedChannel } from '@/types/social';
 // client-only, so the anthem rides in the body as one closing line ("♪ Title — Artist" + link) —
 // what you would type yourself, built from the anthem already on your identity card.
 
+// SHARESPOT (mock 346, ss3). Posting is the app's centerpiece: the raised + in the bottom bar opens
+// this from every screen. What changed on the sheet above, and nothing else:
+//   - THE MEDIA RAIL is the mock's six (Camera, Gallery, Video, Celebrate, Fitness PR, Anthem), then
+//     Session (a finished lock-in) and Tag. Celebrate and Fitness PR are the one achievement picker
+//     opened on different chips; Fitness PR fills its own slot so a PR and a reward ride one post.
+//   - REAL ART (0298). Tag searches a game / song / film / show / book through the resolve-art edge
+//     function and attaches its canonical id as {kind: 'art'}; the server freezes the art. Anthem
+//     resolves your anthem the same way, so it posts with its real album cover, and only falls back
+//     to the old "Title - Artist" text line when the lookup finds nothing.
+//   - AUDIENCE is Everyone / Friends / Rooms. A Room is a `groups` row (ss1): the same campfire
+//     channel create_campfire_post already writes, so a room post lands in that Room's feed.
+//   - POSTED, then the live post (mock 353) instead of dropping you back where you were.
+
 const MAX = 1000;
 
 function anthemLine(a: Anthem): string {
@@ -108,18 +123,21 @@ function anthemLine(a: Anthem): string {
  * everything that is not a finished session is "a reward", and a slot per kind would put six more
  * buttons on the row.
  */
-type AttachSlot = 'lockin' | 'achievement';
+type AttachSlot = 'lockin' | 'achievement' | 'fitness';
 
 /** Drawn in the order the CARD will draw them (ATTACH_ORDER), so the composer previews the post. */
-const SLOT_ORDER: AttachSlot[] = ['lockin', 'achievement'];
+const SLOT_ORDER: AttachSlot[] = ['lockin', 'achievement', 'fitness'];
 
 const SLOT_ICON: Record<AttachSlot, NavGlyphName> = {
   lockin: 'session',
   achievement: 'reward',
+  fitness: 'dumbbell',
 };
 
 function slotOf(choice: AchievementChoice): AttachSlot {
-  return choice.kind === 'lockin' ? 'lockin' : 'achievement';
+  if (choice.kind === 'lockin') return 'lockin';
+  // A gym PR has a slot of its own (Fitness PR); every other earned thing is Celebrate's.
+  return choice.kind === 'pr' ? 'fitness' : 'achievement';
 }
 
 type Lane = { kind: 'forest' | 'campfire'; id: string; name: string; emoji?: string };
@@ -158,6 +176,14 @@ export default function AgoraComposeScreen() {
   const [picker, setPicker] = useState<AttachSlot | null>(null);
   const [anthem, setAnthem] = useState<Anthem | null>(null);
   const [withAnthem, setWithAnthem] = useState(false);
+  // 0298 - the art slot: one tagged thing with its real artwork. Anthem fills it too (its album
+  // cover); `artFromAnthem` says which, so tagging a game over it drops back to the anthem text line.
+  const [art, setArt] = useState<ArtEntity | null>(null);
+  const [artFromAnthem, setArtFromAnthem] = useState(false);
+  const [artSheet, setArtSheet] = useState(false);
+  const [anthemResolving, setAnthemResolving] = useState(false);
+  // Set once the post exists: the "Posted" beat before the live post replaces this sheet.
+  const [posted, setPosted] = useState(false);
   const [posting, setPosting] = useState(false);
   // The video slot. `preparing` is compress + poster (0…1); `uploading` is the PUT on Post (0…1).
   const [video, setVideo] = useState<PreparedAgoraVideo | null>(null);
@@ -183,7 +209,11 @@ export default function AgoraComposeScreen() {
   );
 
   const canPost =
-    Boolean(body.trim() || photoUri || chosen.length || withAnthem || video || link) && !posting && preparing === null;
+    Boolean(body.trim() || photoUri || chosen.length || withAnthem || video || link || art) &&
+    !posting &&
+    !posted &&
+    preparing === null &&
+    !anthemResolving;
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -207,7 +237,8 @@ export default function AgoraComposeScreen() {
     if (shareRead.current || params.source !== 'share') return;
     shareRead.current = true;
     if (sharedUri && sharedIsVideo) void prepareVideo(sharedUri, null, true);
-    if (params.pick === 'campfire' || params.pick === 'forest') openLanePicker(params.pick);
+    // Both open the room list: forests left the picker (Rooms are groups).
+    if (params.pick === 'campfire' || params.pick === 'forest') openLanePicker('campfire');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -222,7 +253,9 @@ export default function AgoraComposeScreen() {
     setLanePicker(true);
     if (myChannels !== null) return;
     fetchMyFeedChannels()
-      .then((rows) => setMyChannels([...rows.filter((c) => c.kind === 'campfire'), ...rows.filter((c) => c.kind === 'forest')]))
+      // Rooms are `groups` (ShareSpot section 1): the campfire channels. Forests are out of the picker;
+      // a forest lane still works when a forest's own Post button seeds it (?forestId=).
+      .then((rows) => setMyChannels(rows.filter((c) => c.kind === 'campfire')))
       .catch(() => setMyChannels([]));
   }
 
@@ -326,16 +359,52 @@ export default function AgoraComposeScreen() {
   function toggleAnthem() {
     if (withAnthem) {
       setWithAnthem(false);
+      if (artFromAnthem) {
+        setArt(null);
+        setArtFromAnthem(false);
+      }
       return;
     }
     if (anthem) {
       setWithAnthem(true);
+      void resolveAnthemArt(anthem);
       return;
     }
     Alert.alert('No anthem yet', 'Pick your anthem on your identity card, then share it from here.', [
       { text: 'Not now', style: 'cancel' },
       { text: 'Set my anthem', onPress: () => router.push('/edit-identity') },
     ]);
+  }
+
+  /** Your anthem's real album cover (0298). Nothing found / offline: the text line, as before. */
+  async function resolveAnthemArt(a: Anthem) {
+    setAnthemResolving(true);
+    try {
+      const hits = await resolveArt('song', `${a.title} ${a.artist ?? ''}`.trim());
+      const best = hits[0];
+      // Never replaces a game / film the person tagged on purpose.
+      if (best && (!art || artFromAnthem)) {
+        setArt(best);
+        setArtFromAnthem(true);
+      }
+    } catch {
+      // The anthem still posts, as its text line.
+    } finally {
+      setAnthemResolving(false);
+    }
+  }
+
+  function pickArt(entity: ArtEntity) {
+    setArt(entity);
+    setArtFromAnthem(false);
+  }
+
+  function removeArt() {
+    setArt(null);
+    if (artFromAnthem) {
+      setArtFromAnthem(false);
+      setWithAnthem(false);
+    }
   }
 
   async function post() {
@@ -369,6 +438,8 @@ export default function AgoraComposeScreen() {
       }
       // 0294 · the shared link, by URL alone — the server checks its shape and freezes the provider.
       if (link) attachments.push({ kind: 'link', ref_id: null, key: link });
+      // 0298 - the tag, by canonical id alone; the server freezes its title and art.
+      if (art) attachments.push({ kind: 'art', ref_id: null, key: art.canonical_id });
       // A photo / clip shared in and still on the post keeps its "↳ from your story" tag (0286).
       const fromShare =
         (sharedUri !== null && photoUri === sharedUri) ||
@@ -376,7 +447,8 @@ export default function AgoraComposeScreen() {
       let postId: string;
       // The anthem line goes last and the typed text gives way to it, so the post still fits 1000.
       const typed = body.trim();
-      const tail = withAnthem && anthem ? anthemLine(anthem) : '';
+      // An anthem that resolved to its album art posts as that card; only an unresolved one needs the line.
+      const tail = withAnthem && anthem && !(art && artFromAnthem) ? anthemLine(anthem) : '';
       const text = tail
         ? `${typed.slice(0, Math.max(0, MAX - tail.length - 2))}${typed ? '\n\n' : ''}${tail}`
         : body;
@@ -394,7 +466,11 @@ export default function AgoraComposeScreen() {
         announceAgoraPost({ id: postId, itemType: 'post' });
       }
       if (fromShare) await markSharedPost(postId);
-      leave();
+      // POSTED (mock 346 -> 353): a beat of confirmation, then the live post in place of this sheet.
+      setPosted(true);
+      setTimeout(() => {
+        router.replace({ pathname: '/agora/[id]', params: { id: postId, type: 'post', comments: 'false' } });
+      }, 900);
     } catch (e) {
       Alert.alert('Could not post', getErrorMessage(e, 'Something went wrong.'));
     } finally {
@@ -480,7 +556,9 @@ export default function AgoraComposeScreen() {
 
               {link ? <LinkPreview url={link} onRemove={() => setLink(null)} /> : null}
 
-              {withAnthem && anthem ? (
+              {art ? <ArtPreview entity={art} onRemove={removeArt} /> : null}
+
+              {withAnthem && anthem && !(art && artFromAnthem) ? (
                 <AttachedChip
                   icon="anthem"
                   label={`${anthem.title}${anthem.artist ? ` — ${anthem.artist}` : ''}`}
@@ -540,9 +618,13 @@ export default function AgoraComposeScreen() {
               most one of each", expressed as the only thing the button is able to do. Photo and
               Camera are two ways to fill the same photo slot; Video holds one clip beside them.
             */}
-            <View style={styles.media}>
-              <AttachButton icon="photo" label="Photo" on={Boolean(photoUri)} onPress={() => void pickPhoto()} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.media}
+              keyboardShouldPersistTaps="handled">
               <AttachButton icon="camera" label="Camera" on={false} onPress={() => void takePhoto()} />
+              <AttachButton icon="photo" label="Gallery" on={Boolean(photoUri)} onPress={() => void pickPhoto()} />
               {AGORA_VIDEO_ENABLED ? (
                 <AttachButton
                   icon="video"
@@ -552,19 +634,31 @@ export default function AgoraComposeScreen() {
                 />
               ) : null}
               <AttachButton
+                icon="reward"
+                label="Celebrate"
+                on={Boolean(attached.achievement)}
+                onPress={() => setPicker('achievement')}
+              />
+              <AttachButton
+                icon="dumbbell"
+                label="Fitness PR"
+                on={Boolean(attached.fitness)}
+                onPress={() => setPicker('fitness')}
+              />
+              <AttachButton
+                icon="anthem"
+                label={anthemResolving ? 'Finding...' : 'Anthem'}
+                on={withAnthem}
+                onPress={toggleAnthem}
+              />
+              <AttachButton
                 icon="session"
                 label="Session"
                 on={Boolean(attached.lockin)}
                 onPress={() => setPicker('lockin')}
               />
-              <AttachButton
-                icon="reward"
-                label="Reward"
-                on={Boolean(attached.achievement)}
-                onPress={() => setPicker('achievement')}
-              />
-              <AttachButton icon="anthem" label="Anthem" on={withAnthem} onPress={toggleAnthem} />
-            </View>
+              <AttachButton icon="plus" label="Tag" on={Boolean(art) && !artFromAnthem} onPress={() => setArtSheet(true)} />
+            </ScrollView>
 
             {/*
               WHO SEES IT (mock 320) — required, one choice, Friends by default. Only the chosen
@@ -572,37 +666,21 @@ export default function AgoraComposeScreen() {
               A campfire / forest row opens the "pick which" sheet; once picked it names the room.
             */}
             <Text style={styles.whoLabel}>WHO SEES IT</Text>
-            <AudienceOption
-              icon="friends"
-              label="Friends only"
-              on={!lane && visibility === 'friends'}
-              onPress={() => chooseSquare('friends')}
-            />
-            <AudienceOption
-              icon="campfire"
-              emoji={lane?.kind === 'campfire' ? lane.emoji : null}
-              label={lane?.kind === 'campfire' ? lane.name : 'A campfire'}
-              sub={lane?.kind === 'campfire' ? 'the campfire’s members · change' : 'pick which'}
-              on={lane?.kind === 'campfire'}
-              onPress={() => openLanePicker('campfire')}
-              chevron
-            />
-            <AudienceOption
-              icon="forest"
-              emoji={lane?.kind === 'forest' ? lane.emoji : null}
-              label={lane?.kind === 'forest' ? lane.name : 'A forest'}
-              sub={lane?.kind === 'forest' ? 'anyone who opens it can read · change' : 'pick which'}
-              on={lane?.kind === 'forest'}
-              onPress={() => openLanePicker('forest')}
-              chevron
-            />
-            <AudienceOption
-              icon="everyone"
-              label="Everyone"
-              sub="public on Philoi"
-              on={!lane && visibility === 'public'}
-              onPress={() => chooseSquare('public')}
-            />
+            <View style={styles.aud} accessibilityRole="radiogroup">
+              <AudienceSeg label="Everyone" on={!lane && visibility === 'public'} onPress={() => chooseSquare('public')} />
+              <AudienceSeg label="Friends" on={!lane && visibility === 'friends'} onPress={() => chooseSquare('friends')} />
+              <AudienceSeg label="Rooms" on={Boolean(lane)} onPress={() => openLanePicker('campfire')} />
+            </View>
+            {lane ? (
+              <AudienceOption
+                icon={lane.kind === 'forest' ? 'forest' : 'campfire'}
+                emoji={lane.emoji}
+                label={lane.name}
+                sub="only the room’s members · change"
+                on
+                onPress={() => openLanePicker('campfire')}
+              />
+            ) : null}
             {/* No caption under the picker (copy/declutter pass): the rows already say who sees
                 it, and a line explaining there's no algorithm or no likes was explaining an absence. */}
           </ScrollView>
@@ -610,10 +688,21 @@ export default function AgoraComposeScreen() {
       </SafeAreaView>
 
       <AgoraAchievementPicker
-        visible={picker === 'achievement'}
+        visible={picker === 'achievement' || picker === 'fitness'}
+        initialFilter={picker === 'fitness' ? 'fitness' : 'all'}
         onClose={() => setPicker(null)}
         onPick={choose}
       />
+      <ArtTagSheet visible={artSheet} onClose={() => setArtSheet(false)} onPick={pickArt} />
+
+      {posted ? (
+        <View style={styles.posted} pointerEvents="none" accessibilityLiveRegion="polite">
+          <View style={styles.postedBadge}>
+            <Ionicons name="checkmark" size={30} color={Colors.onEmber} />
+          </View>
+          <Text style={styles.postedText}>Posted</Text>
+        </View>
+      ) : null}
       <AgoraLockInPicker visible={picker === 'lockin'} onClose={() => setPicker(null)} onPick={choose} />
 
       <Modal
@@ -624,14 +713,12 @@ export default function AgoraComposeScreen() {
         <Pressable style={styles.scrim} onPress={() => setLanePicker(false)} accessibilityLabel="Close">
           {/* Swallows taps so a press inside the sheet doesn't fall through to the scrim. */}
           <Pressable style={styles.laneSheet} onPress={() => {}}>
-            <Text style={styles.laneSheetTitle}>{laneKind === 'campfire' ? 'Which campfire?' : 'Which forest?'}</Text>
+            <Text style={styles.laneSheetTitle}>Which room?</Text>
             {myChannels === null ? (
               <ActivityIndicator color={Colors.textTertiary} style={styles.laneLoader} />
             ) : !myChannels.some((c) => c.kind === laneKind) ? (
               <Text style={styles.laneEmpty}>
-                {laneKind === 'campfire'
-                  ? 'Join a campfire to post into it.'
-                  : 'Join a forest from Social → Forests to post into it.'}
+                Join a room to post into it.
               </Text>
             ) : (
               <ScrollView style={styles.laneList}>
@@ -697,6 +784,46 @@ function LinkPreview({ url, onRemove }: { url: string; onRemove: () => void }) {
         <Ionicons name="close" size={15} color={Colors.textTertiary} />
       </Pressable>
     </View>
+  );
+}
+
+/** The tag (0298), as the card will draw it: the real art, the title, what kind of thing it is. */
+function ArtPreview({ entity, onRemove }: { entity: ArtEntity; onRemove: () => void }) {
+  const tall = entity.kind === 'film' || entity.kind === 'show' || entity.kind === 'book';
+  return (
+    <View style={styles.linkCard}>
+      <View style={[styles.artTile, { aspectRatio: tall ? 2 / 3 : 1 }]}>
+        <Image source={{ uri: entity.art_url }} style={StyleSheet.absoluteFill} contentFit="cover" />
+      </View>
+      <View style={styles.flex}>
+        <Text style={styles.artEyebrow}>{ART_KIND_LABEL[entity.kind].toUpperCase()}</Text>
+        <Text style={styles.linkTitle} numberOfLines={2}>
+          {entity.title}
+        </Text>
+        {entity.subtitle ? (
+          <Text style={styles.linkSub} numberOfLines={1}>
+            {entity.subtitle}
+          </Text>
+        ) : null}
+      </View>
+      <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel={`Remove ${entity.title}`}>
+        <Ionicons name="close" size={15} color={Colors.textTertiary} />
+      </Pressable>
+    </View>
+  );
+}
+
+/** One pill of mock 346's Everyone / Friends / Rooms toggle. */
+function AudienceSeg({ label, on, onPress }: { label: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      style={[styles.audSeg, on && styles.audSegOn]}
+      onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={label}>
+      <Text style={[styles.audSegText, on && styles.audSegTextOn]}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -981,14 +1108,16 @@ const styles = StyleSheet.create({
   },
   media: {
     flexDirection: 'row',
-    gap: Spacing.two,
+    gap: 9,
     marginTop: Spacing.twelve,
+    paddingRight: Spacing.two,
   },
+  // Mock 346's `.mt2`: a tile per medium, its label under the glyph.
   attachBtn: {
-    flex: 1,
+    width: 60,
     alignItems: 'center',
     gap: 4,
-    borderRadius: 13,
+    borderRadius: 14,
     paddingVertical: 10,
     paddingHorizontal: 2,
     backgroundColor: Colors.spacePanel,
@@ -1017,6 +1146,66 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.navEmber,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  artTile: {
+    width: 44,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: Colors.spacePanel,
+  },
+  artEyebrow: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 9.5,
+    letterSpacing: 0.4,
+    color: Colors.navEmber2,
+    marginBottom: 1,
+  },
+  // Mock 346's `.aud`: one pill, three segments, the chosen one ember.
+  aud: {
+    flexDirection: 'row',
+    alignSelf: 'flex-start',
+    borderRadius: Radius.pill,
+    padding: 3,
+    marginBottom: 9,
+    backgroundColor: Colors.spacePanel,
+    borderWidth: 1,
+    borderColor: Colors.spaceLine,
+  },
+  audSeg: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 15,
+    paddingVertical: 7,
+  },
+  audSegOn: {
+    backgroundColor: Colors.navEmber,
+  },
+  audSegText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 12,
+    color: Colors.spaceFaint,
+  },
+  audSegTextOn: {
+    color: Colors.onEmber,
+  },
+  posted: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.twelve,
+    backgroundColor: 'rgba(5,3,14,0.72)',
+  },
+  postedBadge: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.navEmber,
+  },
+  postedText: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 17,
+    color: Colors.ink,
   },
   // WHO SEES IT — mock 320's `.sk` / `.aopt` / `.noalgo`.
   whoLabel: {

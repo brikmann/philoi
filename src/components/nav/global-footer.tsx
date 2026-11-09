@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomBar, TAB_SLOTS, type TabKey } from '@/components/nav/bottom-bar';
-import { fetchMyDmThreads } from '@/lib/api/dm';
 import { useActiveSession } from '@/lib/active-session-context';
 import { useAuth } from '@/lib/auth/auth-context';
 
@@ -84,8 +83,8 @@ export function GlobalFooter() {
   const { session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
   const { session: activeSession } = useActiveSession();
   const onTab = TAB_PATHS[pathname] ?? null;
+  // The unread-DM badge moved to Home's ✉ (ShareSpot §2) along with Chat's slot.
   const [lastTab, setLastTab] = useState<TabKey>('index');
-  const [chatUnread, setChatUnread] = useState(0);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- remembers the last tab across a route change; the pathname is the external system here
@@ -94,33 +93,21 @@ export function GlobalFooter() {
 
   const usable = Boolean(session) && !needsHandle && !needsConsent && !needsAccountDisabled;
 
-  // The Chat slot's unread count, re-read each time you land on a tab — what the top bar's old
-  // paper-plane did on focus. Coming back from a thread (a pushed screen) lands on a tab, so reading
-  // a DM clears its count on the way out. A failed read keeps the last count: the badge is flavour.
-  useEffect(() => {
-    if (!usable || !onTab) return;
-    let live = true;
-    fetchMyDmThreads()
-      .then((threads) => {
-        if (live) setChatUnread(threads.reduce((n, t) => n + (t.unread ?? 0), 0));
-      })
-      .catch(() => {});
-    return () => {
-      live = false;
-    };
-  }, [usable, onTab]);
-
   if (!usable || isHidden(pathname)) return null;
 
   return (
     <BottomBar
       active={onTab ?? lastTab}
       sessionLive={Boolean(activeSession)}
-      chatUnread={chatUnread}
       bottomInset={insets.bottom}
       onSelect={(key) => {
         const slot = TAB_SLOTS.find((s) => s.key === key);
         if (!slot) return;
+        // Post opens the composer modal on top of wherever you are (mock 346: one tap from every screen).
+        if (key === 'post') {
+          router.push(slot.href as never);
+          return;
+        }
         // navigate(), not push(): back to the (tabs) screen already in the stack, never a second copy.
         router.navigate(slot.href as never);
       }}

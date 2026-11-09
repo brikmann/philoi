@@ -1,53 +1,53 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { Colors, Fonts } from '@/constants/theme';
 
-// THE BOTTOM BAR, drawn (mock 331, connection-first): Home · Discover · 🔥Lock In · Chat · You.
+// THE BOTTOM BAR, drawn (ShareSpot, mock 346): Home · Search · ➕Post · Lock In · You.
 //
-// No Leaderboard slot. "Lock In" beside "Leaderboard" read as "you're being ranked"; ranking is now
-// something you walk into from You → Standings, never chrome. The two community tabs flank the flame
-// on each side: Discover (the Agora feed, the `social` route) and Chat (friends, forests, campfires).
+// POSTING IS THE CENTERPIECE. The raised slot is no longer a tab: it is the Post button, an ember
+// rounded-square lifted out of the bar, and a tap opens the composer (agora/compose) from any screen.
+// It is never "lit" — there is no Post screen to be on — so `active` only ever names one of the four
+// tabs around it.
+//
+// Lock In moved off center onto a pencil (study/project, never crossed swords) and keeps its green
+// live-session dot. Chat left the bar: 1:1 DMs live behind Home's ✉, group chats in Rooms (SHARED §3),
+// so the unread-DM badge is the Home top bar's now, not this bar's.
 //
 // Presentational only — components/nav/global-footer.tsx decides when it shows, which slot is lit and
 // where a tap goes, so the SAME bar sits under the tabs and under every drawer screen.
-//
-// The center slot is the button-in-button: an ember disc floating above the bar inside a ring the
-// colour of the screen, carrying the only FILLED glyph in the set. Every other slot is a stroke
-// glyph: ember when active, faint when not.
-//
-// Chat carries the unread-DM count — the only badge on the bar. It used to be a paper-plane glyph in
-// the top-right globals; the declutter pass moved it to the tab that owns conversations.
 
 // `social` keeps its key and route: campfire "posts" buttons and installed builds deep-link /social.
+// `chat` stays in the union — (tabs)/chat still exists and still lights a slot if one is ever drawn.
 export type TabKey = 'index' | 'social' | 'lockin' | 'chat' | 'profile';
+export type SlotKey = TabKey | 'post';
 
-export const TAB_SLOTS: { key: TabKey; href: string; label: string; glyph: NavGlyphName; center?: boolean }[] = [
+export const TAB_SLOTS: { key: SlotKey; href: string; label: string; glyph: NavGlyphName; center?: boolean }[] = [
   { key: 'index', href: '/', label: 'Home', glyph: 'home' },
-  { key: 'social', href: '/social', label: 'Discover', glyph: 'compass' },
-  { key: 'lockin', href: '/lockin', label: 'Lock In', glyph: 'flame', center: true },
-  { key: 'chat', href: '/chat', label: 'Chat', glyph: 'chat' },
+  { key: 'social', href: '/social', label: 'Search', glyph: 'search' },
+  { key: 'post', href: '/agora/compose', label: 'Post', glyph: 'plus', center: true },
+  { key: 'lockin', href: '/lockin', label: 'Lock In', glyph: 'pencil' },
   { key: 'profile', href: '/profile', label: 'You', glyph: 'person' },
 ];
 
-const HERO = 64;
-const RING = 6;
+const HERO = 56;
+const RING = 5;
+/** Mock 346's `.pbtn`: a rounded square (18 of 54), not a disc — the Post button, not the old flame. */
+const HERO_RADIUS = 18;
 
 export function BottomBar({
   active,
   sessionLive,
-  chatUnread = 0,
   bottomInset,
   onSelect,
 }: {
   /** The lit slot; null lights none. */
   active: TabKey | null;
+  /** A lock-in is running — the green dot on the Lock In slot. */
   sessionLive: boolean;
-  /** Unread direct messages, drawn on the Chat slot. */
-  chatUnread?: number;
   bottomInset: number;
-  onSelect: (key: TabKey) => void;
+  onSelect: (key: SlotKey) => void;
 }) {
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(bottomInset, 10) }]}>
@@ -61,11 +61,10 @@ export function BottomBar({
                 key={slot.key}
                 onPress={() => onSelect(slot.key)}
                 style={styles.slot}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: focused }}
-                accessibilityLabel={sessionLive ? 'Lock In, session running' : 'Lock In'}>
+                accessibilityRole="button"
+                accessibilityLabel="New post">
                 <View style={styles.ring}>
-                  <View style={[styles.hero, focused && styles.heroOn]}>
+                  <View style={styles.hero}>
                     <Svg width={HERO} height={HERO} style={StyleSheet.absoluteFill}>
                       <Defs>
                         <LinearGradient id="navHero" x1="0" y1="0" x2="1" y2="1">
@@ -74,10 +73,9 @@ export function BottomBar({
                           <Stop offset="1" stopColor={Colors.gold} />
                         </LinearGradient>
                       </Defs>
-                      <Circle cx={HERO / 2} cy={HERO / 2} r={HERO / 2} fill="url(#navHero)" />
+                      <Rect width={HERO} height={HERO} rx={HERO_RADIUS} fill="url(#navHero)" />
                     </Svg>
-                    <NavGlyph name="flame" size={32} color="#160D26" />
-                    {sessionLive ? <View style={styles.liveDot} /> : null}
+                    <NavGlyph name="plus" size={30} color="#160D26" />
                   </View>
                 </View>
                 <Text style={[styles.label, styles.labelCenter]}>{slot.label}</Text>
@@ -85,7 +83,7 @@ export function BottomBar({
             );
           }
 
-          const badge = slot.key === 'chat' ? chatUnread : 0;
+          const live = slot.key === 'lockin' && sessionLive;
           return (
             <Pressable
               key={slot.key}
@@ -93,14 +91,10 @@ export function BottomBar({
               style={styles.slot}
               accessibilityRole="tab"
               accessibilityState={{ selected: focused }}
-              accessibilityLabel={badge > 0 ? `${slot.label}, ${badge} unread` : slot.label}>
+              accessibilityLabel={live ? `${slot.label}, session running` : slot.label}>
               <View>
                 <NavGlyph name={slot.glyph} size={24} color={focused ? Colors.navEmber2 : Colors.spaceFaint} />
-                {badge > 0 ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
-                  </View>
-                ) : null}
+                {live ? <View style={styles.liveDot} /> : null}
               </View>
               <Text style={[styles.label, { color: focused ? Colors.navEmber2 : Colors.spaceFaint }]}>{slot.label}</Text>
             </Pressable>
@@ -137,13 +131,13 @@ const styles = StyleSheet.create({
   labelCenter: {
     color: Colors.navEmber2,
   },
-  // Mock 331's `.flame`: lifted ~30px out of the bar, ringed in the screen colour (`0 0 0 6px
+  // Mock 346's `.pbtn`: lifted ~20px out of the bar, ringed in the screen colour (`0 0 0 5px
   // #120B22`) so it reads as a button sitting in a notch of the bar, with an ember glow under it.
   ring: {
     width: HERO + RING * 2,
     height: HERO + RING * 2,
-    borderRadius: HERO / 2 + RING,
-    marginTop: -36,
+    borderRadius: HERO_RADIUS + RING,
+    marginTop: -26,
     backgroundColor: '#120B22',
     alignItems: 'center',
     justifyContent: 'center',
@@ -151,42 +145,20 @@ const styles = StyleSheet.create({
   hero: {
     width: HERO,
     height: HERO,
-    borderRadius: HERO / 2,
+    borderRadius: HERO_RADIUS,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: Colors.navEmber,
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.6,
-    shadowRadius: 14,
+    shadowOpacity: 0.7,
+    shadowRadius: 12,
     elevation: 12,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.15)',
   },
-  heroOn: {
-    borderColor: 'rgba(255,255,255,0.45)',
-  },
-  // The top bar's badge, moved here: ember pill, top-right of the glyph.
-  badge: {
-    position: 'absolute',
-    top: -5,
-    right: -9,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    paddingHorizontal: 3,
-    backgroundColor: Colors.navEmber,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    fontFamily: Fonts.black,
-    fontSize: 9,
-    color: '#1A1030',
-  },
+  // A lock-in is running: green, top-right of the pencil.
   liveDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: -2,
+    right: -4,
     width: 10,
     height: 10,
     borderRadius: 5,

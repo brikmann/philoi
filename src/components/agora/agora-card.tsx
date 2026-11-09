@@ -241,7 +241,13 @@ function AttachmentHeadRow({
           to a hole. Neutral tile under it: `view.tint` for a cosmetic IS the item's own first
           gradient stop, so the art would be drawn in its colour on its colour. `motion="off"`
           because a feed scrolls, same rule as the author's aura above. */}
-      {view.art ? (
+      {view.poster ? (
+        // 0298 · a tag's real artwork (game key art, album cover, film poster) at its own shape —
+        // the art is the tag, so it gets a cover, not the 42px glyph tile.
+        <View style={[styles.attachPoster, { aspectRatio: view.poster.aspect, backgroundColor: view.tint }]}>
+          <Image source={{ uri: view.poster.uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} />
+        </View>
+      ) : view.art ? (
         <View style={[styles.attachIcon, styles.attachIconArt]}>
           <ItemArt item={view.art} size={32} motion="off" />
         </View>
@@ -593,6 +599,11 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  attachPoster: {
+    height: 84,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   attachIconArt: {
     backgroundColor: Colors.cardDark,

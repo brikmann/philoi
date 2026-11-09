@@ -4382,7 +4382,7 @@ export type AgoraAudience = 'friends' | 'campfire' | 'forest' | 'everyone' | 'ca
 export type AgoraVisibility = 'friends' | 'campus' | 'public';
 
 /** What a post can carry (mock 162 panels 4-5), plus the milestone rows the feed folds in. */
-export type AgoraAttachKind = 'milestone' | 'lockin' | 'rank' | 'streak' | 'pass' | 'cosmetic' | 'pr' | 'video' | 'link';
+export type AgoraAttachKind = 'milestone' | 'lockin' | 'rank' | 'streak' | 'pass' | 'cosmetic' | 'pr' | 'video' | 'link' | 'art';
 
 /**
  * What the composer SENDS: which achievement, never what it says. `create_agora_post` re-reads
@@ -4507,7 +4507,18 @@ export type AgoraAttachSnapshot = {
   url?: string;
   host?: string;
   provider?: string;
+  // art (0298) — a tagged game / song / film / show / book, frozen from art_entities, which only the
+  // resolve-art edge function writes. art_url is the source CDN's own image; `url` (above) is the
+  // thing's page in that source, when it has one. `source` is shared with cosmetic's provenance.
+  canonical_id?: string;
+  entity_kind?: ArtKind;
+  title?: string;
+  subtitle?: string | null;
+  art_url?: string;
 };
+
+/** What the art resolver can tag (0298). */
+export type ArtKind = 'game' | 'song' | 'film' | 'show' | 'book';
 
 /** One card in the square — a freeform post, or a milestone that auto-surfaced into it. */
 export type AgoraItem = {

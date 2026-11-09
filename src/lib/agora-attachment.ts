@@ -7,6 +7,7 @@ import { RARITY_COLOR, RARITY_LABEL, type Rarity } from '@/lib/economy/rarity';
 import { formatDistanceKm, formatSessionDuration, pluralize } from '@/lib/format';
 import { GOAL_TYPE_ICON, GOAL_TYPE_META } from '@/lib/goal-types';
 import { RANK_TIER_METAL, formatRankTier } from '@/lib/rank-tiers';
+import { ART_KIND_LABEL } from '@/lib/api/art';
 import { LINK_ICON, LINK_TINT, linkCaption, linkThumb, linkTitle, snapshotProvider } from '@/lib/share-link';
 import type {
   AgoraAttachKind,
@@ -60,6 +61,12 @@ export type AgoraAttachmentView = {
   href?: string | null;
   /** An image drawn in place of the glyph tile — a YouTube link's own thumbnail. */
   thumb?: string | null;
+  /**
+   * A tagged thing's REAL artwork (0298 · the art resolver) — game key art, an album cover, a film
+   * poster. Drawn as a cover at its own shape instead of the small glyph tile, because the art is
+   * the point of the tag. `aspect` is width / height: 1 for square art, 2/3 for posters and books.
+   */
+  poster?: { uri: string; aspect: number } | null;
   /**
    * The lift, when the attachment is a gym session. Null for every other kind AND for a gym
    * session posted before migration 0192 froze any of this — an old post keeps rendering as the
@@ -302,10 +309,38 @@ export function attachmentView(
       };
     }
 
+    case 'art': {
+      // 0298 · a tagged game / song / film / show / book, with the art the resolver fetched. No
+      // art_url is a snapshot this build can't draw — null, so it falls back to the caption.
+      if (!snap.art_url || !snap.title) return null;
+      const entity = snap.entity_kind ?? 'game';
+      return {
+        title: snap.title,
+        subtitle: snap.subtitle ?? null,
+        eyebrow: (ART_KIND_LABEL[entity] ?? 'Tag').toUpperCase(),
+        eyebrowColor: Colors.navEmber2,
+        icon: ART_ICON[entity] ?? 'pricetag-outline',
+        art: null,
+        tint: Colors.cardDark,
+        route: null,
+        lift: null,
+        href: snap.url ?? null,
+        poster: { uri: snap.art_url, aspect: entity === 'film' || entity === 'show' || entity === 'book' ? 2 / 3 : 1 },
+      };
+    }
+
     default:
       return null;
   }
 }
+
+const ART_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+  game: 'game-controller-outline',
+  song: 'musical-notes-outline',
+  film: 'film-outline',
+  show: 'tv-outline',
+  book: 'book-outline',
+};
 
 /**
  * The order attachments are DRAWN in, which is not the order they were composed in.
@@ -320,6 +355,7 @@ export function attachmentView(
  */
 const ATTACH_ORDER: AgoraAttachKind[] = [
   'link',
+  'art',
   'lockin',
   'milestone',
   'rank',

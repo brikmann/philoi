@@ -69,13 +69,25 @@ export function AgoraAchievementPicker({
   visible,
   onClose,
   onPick,
+  initialFilter = 'all',
 }: {
   visible: boolean;
   onClose: () => void;
   onPick: (choice: AchievementChoice) => void;
+  /** Which chip the sheet opens on — the composer's 🏋 Fitness PR opens it on 'fitness'. */
+  initialFilter?: string;
 }) {
   const [rows, setRows] = useState<AgoraAchievement[] | null>(null);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState(initialFilter);
+  const [openedOn, setOpenedOn] = useState<string | null>(null);
+
+  // Re-seed the chip each time the sheet opens, from the button that opened it. Done during
+  // render (the "adjust state on prop change" pattern), not in an effect.
+  const openKey = visible ? initialFilter : null;
+  if (openKey !== openedOn) {
+    setOpenedOn(openKey);
+    if (openKey !== null) setFilter(openKey);
+  }
 
   useEffect(() => {
     if (!visible) return;

@@ -49,6 +49,11 @@ verify_jwt = true
 [functions.spotify-disconnect]
 verify_jwt = true
 
+# The art resolver (0298): called by the signed-in app; it reads the caller from the JWT for its
+# per-user rate limit, so an anonymous call has nothing to be limited by.
+[functions.resolve-art]
+verify_jwt = true
+
 # Sign in with Apple token revocation, called by the app during account deletion (5.1.1(v)). It
 # identifies the caller from their JWT so a user can only revoke their own Apple grant.
 [functions.apple-revoke]
