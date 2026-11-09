@@ -482,6 +482,56 @@ begin
 end;
 $function$;
 
+-- ── 6b. get_discoverable_rooms — Rooms browse (ss2, mock 355) ───────────────────────────────────
+-- Open + gated rooms, PLUS code rooms (shown locked — the gate is the point). Never a legacy
+-- invite-only private room, never join_code, never a room whose owner is blocked either way.
+
+create or replace function public.get_discoverable_rooms(p_query text default null, p_limit int default 30)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_me uuid := auth.uid();
+  v_q text := nullif(btrim(coalesce(p_query, '')), '');
+begin
+  if v_me is null then
+    raise exception 'Sign in first.';
+  end if;
+
+  return coalesce((
+    select jsonb_agg(r order by r->>'last_activity_at' desc nulls last, (r->>'member_count')::int desc)
+    from (
+      select jsonb_build_object(
+        'id', g.id,
+        'name', g.name,
+        'emoji', g.emoji,
+        'member_count', (select count(*) from group_members gm where gm.group_id = g.id),
+        'online_count', (select count(*) from lock_in_sessions ls where ls.circle_id = g.id and ls.status = 'active'),
+        'join_policy', g.join_policy,
+        'privacy', g.privacy,
+        'course_code', g.course_code,
+        'school', g.school,
+        'is_member', exists (select 1 from group_members gm where gm.group_id = g.id and gm.user_id = v_me),
+        'last_activity_at', (select max(m.created_at) from messages m where m.group_id = g.id and m.deleted_at is null)
+      ) r
+      from groups g
+      where (g.privacy in ('open', 'gated') or g.join_policy = 'code')
+        and not is_blocked_either_way(g.owner_id)
+        and (
+          v_q is null
+          or g.name ilike '%' || v_q || '%'
+          or g.course_code ilike '%' || v_q || '%'
+          or g.school ilike '%' || v_q || '%'
+        )
+      limit greatest(1, least(coalesce(p_limit, 30), 100))
+    ) s
+  ), '[]'::jsonb);
+end;
+$function$;
+
 -- ── 7. Close the direct-insert bypass ─────────────────────────────────────────────────────────────
 -- Prod's "group_members: insert self" was `with check (user_id = auth.uid())` — any signed-in user
 -- could insert themselves into ANY group, private or code-gated, and as role 'owner' or 'admin'.
@@ -514,6 +564,7 @@ revoke all on function public.set_room_policy(uuid, text) from public, anon;
 revoke all on function public.set_room_member_role(uuid, uuid, text) from public, anon;
 revoke all on function public.remove_room_member(uuid, uuid) from public, anon;
 revoke all on function public.set_room_channels(uuid, text[]) from public, anon;
+revoke all on function public.get_discoverable_rooms(text, int) from public, anon;
 revoke all on function public.room_person_json(uuid, text) from public, anon, authenticated;
 revoke all on function public.new_room_code() from public, anon, authenticated;
 revoke all on function public.messages_channel_fallback() from public, anon, authenticated;
@@ -525,3 +576,4 @@ grant execute on function public.set_room_policy(uuid, text) to authenticated;
 grant execute on function public.set_room_member_role(uuid, uuid, text) to authenticated;
 grant execute on function public.remove_room_member(uuid, uuid) to authenticated;
 grant execute on function public.set_room_channels(uuid, text[]) to authenticated;
+grant execute on function public.get_discoverable_rooms(text, int) to authenticated;
