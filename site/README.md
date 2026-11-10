@@ -82,7 +82,12 @@ across a dozen apps, and Philoi brings it into one place. In order:
    leads.
 9. Cosmetics: flames, flares, halos and cards as self-expression. No grind, earn or
    unlock language.
-10. CTA (iOS, plus an Android beta invite by email) and a footer that links every legal page.
+10. The name: φίλοι inside a hand-drawn laurel. Philoi means "friends", and in the
+    Hellenistic courts it was the honorary title for a ruler's trusted inner circle. Not
+    followers, allies. This is the promise beat that ties together patrons, the verified
+    campus circle and the ethos that you're not competing with your people. The
+    "we do good things for each other" line is framed as what the title meant, not a quote.
+11. CTA (iOS, plus an Android beta invite by email) and a footer that links every legal page.
 
 The phones are illustrative HTML, not screenshots. Keep them truthful to the app. No
 real-person imagery: avatars are gradient circles, and third-party apps appear as text
