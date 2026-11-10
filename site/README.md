@@ -55,70 +55,40 @@ the older twilight tokens in their own `<style>` blocks.
 
 System fonts only: the page loads nothing from another origin.
 
-## Layout — the vision manifesto (2026-11)
+## Layout — the vision landing (2026-11-10)
 
-The page is a scroll-told manifesto. Social media is broken, your campus is scattered
-across a dozen apps, and Philoi brings it into one place. In order:
+`index.html` is the pitch landing (`philoi_landing_vision.html` in the repo root is its
+source mock). It's self-contained: inline CSS and JS, and the five "living campus" phone
+screenshots are inline `data:` images. In order:
 
-1. Nav: the wordmark and one "Get Philoi" button, nothing else.
-2. Hero: "University has a social media problem." The signature animation sits in the
-   stage beside it. Fourteen generic-glyph nodes (big apps plus campus chats, clubs,
-   Strava, Forest and Liftoff) start scattered, then pull onto an ellipse around the
-   flame. It plays once on load and replays when you scroll back up. Phones show ten
-   nodes; `.n.w` nodes are wide-screen only. Each node carries `--i` (desktop slot),
-   `--m` (phone slot), `--o`/`--om` (orbit ratio) and `--sx`/`--sy` (scattered position).
-   Positions use CSS `cos()`/`sin()`.
-3. What each app becomes: group chats to Rooms, Strava to Lock In, Forest/Liftoff to
-   Lock In together, feeds to Campfire, finding people to matching, playlists to music.
-4. The problem: four cited stats that count up (Gallup 2023, U.S. Surgeon General 2023,
-   Statistics Canada 2021, Primack et al. 2017). **Never add a number without a source
-   link under it.**
-5. How it works: three beats with illustrative HTML phones (matching, campfire, Lock In).
-6. Built for your campus: verified students, campus and program scoping, one app for
-   your whole degree, rolling out from Laurier. Campus email verification is
-   *optional* in the app, so don't write "sign-up is gated".
-7. The algorithm that connects: "built to bring people together", never "no algorithm".
-8. Competition is a feature: Standings are opt-in and off by default; personal progress
-   leads.
-9. Cosmetics: flames, flares, halos and cards as self-expression. No grind, earn or
-   unlock language.
-10. The name: φίλοι inside a hand-drawn laurel. Philoi means "friends", and in the
-    Hellenistic courts it was the honorary title for a ruler's trusted inner circle. Not
-    followers, allies. This is the promise beat that ties together patrons, the verified
-    campus circle and the ethos that you're not competing with your people. The
-    "we do good things for each other" line is framed as what the title meant, not a quote.
-11. CTA (iOS, plus an Android beta invite by email) and a footer that links every legal page.
+1. Hero: "Your people are scattered everywhere." Eleven app and campus-chat nodes start
+   scattered and merge into the flame. It plays on load and replays when the hero comes
+   back into view. On phones the offsets shrink (`--mx`/`--my` override a node's phone
+   position).
+2. One place: Rooms, Campfire, Lock In and Matching, each as what it replaces.
+3. Why it matters: three cited stats (Gallup 2023, U.S. Surgeon General's youth social
+   media advisory 2023, Cigna U.S. Loneliness Index 2020 via CNBC). The markup holds the
+   final numbers, so no-JS and reduced motion show them. **Never add a number without a
+   source link under it**, and keep each label exactly as narrow as its source: the
+   Cigna 73% is Gen Z *workers*, and the 2× is ages 12–15.
+4. How it works: three cards badged "live".
+5. Verified students: campus email verification is *optional* in the app, so never write
+   "verified students only", "gated" or "no randos".
+6. The living campus: roadmap. Every screenshot and card stays badged "Coming soon"
+   or "coming" until it ships.
+7. Algorithm ("built to bring people together", never "no algorithm"), then competition
+   (opt-in, off by default), then cosmetics. Cosmetic names must be real catalog names.
+8. The name: φίλοι. The "we do good things for each other" line is framed as what the
+   title meant, not a quote.
+9. CTA (App Store, plus an Android beta invite by email) and a footer that links every
+   legal page.
 
-The phones are illustrative HTML, not screenshots. Keep them truthful to the app. No
-real-person imagery: avatars are gradient circles, and third-party apps appear as text
-labels with generic glyphs, never their logos. Live vs roadmap: music is "connect your
-music", never "we pull your Spotify feed", and there's no claim of importing from other
-networks.
+Live vs roadmap: no `philoi.app/{username}` claim (it 404s on the web), and no film art
+claim (TMDB isn't configured in prod, so film tags return nothing).
 
-Motion: one inline script. The hero merge, one-shot reveals, the stat count-up, and
-looping animations that only run while their `[data-live]` section is on screen. The
-script adds the hidden and scattered states itself, so without JS, or with
-`prefers-reduced-motion`, the page shows its finished state: the integrated ring, every
-section visible, the final numbers.
-
-`philoi.app/{username}` currently 404s on the web (no rewrite), so the page doesn't link
-to it as a live demo.
-
-## Cosmetic art
-
-Every flame, flare, halo, card, medal, relic, crate, the house crest and the Lock In flame
-on the page is the app's own renderer (`ItemArt`, `BoxArt`, `HaloRing`, `PatronCrest`,
-`FlameLogo`) exported to inline SVG. Each sits between `<!--art:KEY-->` and `<!--/art-->`
-in `index.html`, with the keys listed in `_assets/cosmetic-art/art.jsx`. After an art or
-catalog change, or to add a key:
-
-```bash
-node site/_assets/cosmetic-art/export.mjs
-```
-
-It renders from `git archive HEAD src` (so it never ships a sibling session's uncommitted
-item), refills every marker in place, and is idempotent. The first run installs esbuild
-into a temp folder; the app's `package.json` is untouched.
+The previous page (the manifesto, with app-rendered cosmetic art) is `c659a32`.
+`_assets/cosmetic-art/export.mjs` only fills `<!--art:KEY-->` markers, and this page has
+none.
 
 ## Availability
 
