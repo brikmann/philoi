@@ -82,6 +82,10 @@ across a dozen apps, and Philoi brings it into one place. In order:
    leads.
 9. Cosmetics: flames, flares, halos and cards as self-expression. No grind, earn or
    unlock language.
+9½. What's coming: five concept screenshots (`coming/*.jpg`, cropped from the root
+    `marketing-coming/` mocks to drop their "MOCK nnn" label). Every card stays badged
+    "Coming soon": this is roadmap and must never read as shipped. It's a 5-up grid on
+    desktop and a swipe row under 980px, using the shared `.rv` reveal with a d1–d5 stagger.
 10. The name: φίλοι inside a hand-drawn laurel. Philoi means "friends", and in the
     Hellenistic courts it was the honorary title for a ruler's trusted inner circle. Not
     followers, allies. This is the promise beat that ties together patrons, the verified

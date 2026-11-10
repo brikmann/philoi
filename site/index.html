@@ -345,6 +345,24 @@
   @media(max-width:980px){.shelves{grid-template-columns:repeat(2,minmax(0,1fr))}}
   @media(max-width:480px){.shelves{grid-template-columns:1fr}.tiles{grid-template-columns:repeat(4,1fr)}.tile .ta{width:48px;height:48px}.tile span{font-size:10px}}
 
+  /* ───────── 8¼. WHAT'S COMING (roadmap; every card stays "Coming soon") ───────── */
+  .soon{background:radial-gradient(900px 520px at 50% 45%,rgba(255,122,47,.10),transparent 65%)}
+  .shots{margin-top:52px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px}
+  .shot{margin:0;border-radius:24px;border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),rgba(26,18,48,.35));padding:12px 12px 18px}
+  .shot .sf{border-radius:18px;overflow:hidden;background:#07050f;box-shadow:0 24px 50px -24px rgba(0,0,0,.85),0 0 0 1px rgba(255,176,90,.16);transition:transform .3s,box-shadow .3s}
+  .shot:hover .sf{transform:translateY(-4px);box-shadow:0 30px 60px -24px rgba(255,122,47,.45),0 0 0 1px rgba(255,176,90,.45)}
+  .shot img{display:block;width:100%;height:auto}
+  .shot .cs{display:inline-block;margin-top:14px;padding:4px 10px;border-radius:999px;border:1px solid rgba(255,176,90,.45);background:rgba(255,122,47,.12);color:var(--ember2);font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+  .shot h3{font-size:18px;letter-spacing:-.02em;margin-top:10px;line-height:1.2}
+  .shot p{color:var(--dim);font-size:13px;margin-top:4px;line-height:1.45}
+  .motion .rv.d5{transition-delay:.4s}
+  @media(max-width:980px){
+    .shots{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:14px;margin:44px -24px 0;padding:4px 24px 14px;scrollbar-width:none}
+    .shots::-webkit-scrollbar{display:none}
+    .shot{flex:0 0 min(250px,68vw);scroll-snap-align:center}
+  }
+  @media(max-width:520px){.shots{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}}
+
   /* ───────── 8½. THE NAME ───────── */
   .name{text-align:center;padding-bottom:clamp(40px,6vw,72px)}
   .name .crest{position:relative;width:min(420px,88vw);margin:22px auto 0}
@@ -802,6 +820,39 @@
       </div>
     </div>
     <div class="never rv"><span><b>Never</b> pay-to-win</span><span><b>Never</b> a grind</span><span><b>Always</b> just you</span></div>
+  </div>
+</section>
+
+<!-- ═════════ 8¼. WHAT'S COMING — roadmap, never implied live ═════════ -->
+<section class="soon" aria-labelledby="h-soon">
+  <div class="wrap">
+    <div class="center rv">
+      <span class="eyebrow">What's next</span>
+      <h2 id="h-soon">What's coming <span class="em">to Philoi.</span></h2>
+      <p class="lede">Philoi isn't just one app. It's a living campus community. Here's what's next.</p>
+    </div>
+    <div class="shots">
+      <figure class="shot rv d1">
+        <div class="sf"><img src="coming/sunday-drop.jpg" width="600" height="1242" loading="lazy" decoding="async" alt="Concept screen: The Sunday Drop, a live campus canvas of the weekend with a countdown."></div>
+        <figcaption><span class="cs">Coming soon</span><h3>The Sunday Drop</h3><p>Every Sunday, 9PM: the app goes live for 30 minutes. Your campus’s whole weekend, all at once.</p></figcaption>
+      </figure>
+      <figure class="shot rv d2">
+        <div class="sf"><img src="coming/irl-drops.jpg" width="600" height="1242" loading="lazy" decoding="async" alt="Concept screen: a flash drop offering free coffee at a campus café."></div>
+        <figcaption><span class="cs">Coming soon</span><h3>IRL drops &amp; pop-ups</h3><p>Flash perks at campus spots. A ticket to tonight, not a thing to scroll.</p></figcaption>
+      </figure>
+      <figure class="shot rv d3">
+        <div class="sf"><img src="coming/lockin-collectives.jpg" width="600" height="1242" loading="lazy" decoding="async" alt="Concept screen: a library lock-in session with attendees and spots left."></div>
+        <figcaption><span class="cs">Coming soon</span><h3>Lock-In collectives</h3><p>Study together, for real. Survive the sprint as a group, earn the badge.</p></figcaption>
+      </figure>
+      <figure class="shot rv d4">
+        <div class="sf"><img src="coming/memory-capsules.jpg" width="600" height="1242" loading="lazy" decoding="async" alt="Concept screen: a shared event photo roll counting down to when it develops."></div>
+        <figcaption><span class="cs">Coming soon</span><h3>Memory capsules</h3><p>Event photo rolls that develop the next day. The story the morning after.</p></figcaption>
+      </figure>
+      <figure class="shot rv d5">
+        <div class="sf"><img src="coming/campus-seasons.jpg" width="600" height="1242" loading="lazy" decoding="async" alt="Concept screen: a campus season summary with an exportable scrapbook."></div>
+        <figcaption><span class="cs">Coming soon</span><h3>Campus Seasons</h3><p>Fall Kickoff to Spring Send-Off, each ending in your exportable Campus Scrapbook.</p></figcaption>
+      </figure>
+    </div>
   </div>
 </section>
 
