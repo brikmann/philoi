@@ -5,11 +5,11 @@ import { Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { INVITE_DOMAIN } from '@/lib/api/groups';
+import { campfireUrl } from '@/lib/api/rooms';
 import { useAuth } from '@/lib/auth/auth-context';
 
 // INVITE FRIENDS (ShareSpot mock 369) — the density engine, one tap. Your share link is
-// philoi.app/join/{username} (no @ in a URL). The mock's "from your contacts" list needs
+// philoi.app/{username}, the same URL as your Campfire (no @, no /join/). The mock's "from your contacts" list needs
 // expo-contacts, a native module this build doesn't carry; it's a follow-up for the next binary.
 // Until then, "Find by username" covers people already on Philoi.
 
@@ -17,8 +17,7 @@ export default function InviteScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const [copied, setCopied] = useState(false);
-  const handle = profile?.handle?.replace(/^@+/, '').trim() ?? '';
-  const link = handle ? `${INVITE_DOMAIN}/join/${handle}` : null;
+  const link = campfireUrl(profile?.handle);
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
