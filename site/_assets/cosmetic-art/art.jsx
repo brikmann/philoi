@@ -18,6 +18,8 @@ for (const id of [
   'flame-electric-cyan', 'flame-lime-volt', 'card-forged-bronze',
   'flame-forge', 'medal-campus-sovereign', 'relic-icarus-feather',
   'card-emberfall', 'particle-void-smoke', 'halo-emberfall', 'halo-emberfall-mythic', 'card-emberfall-mythic', 'medal-emberfall-crown',
+  // The cosmetics gallery's Flares row (vision landing, 2026-11).
+  'flare-inferno', 'flare-solar', 'flare-acid-rain',
 ]) {
   const item = getItem(id);
   if (!item) throw new Error(`not in the catalog at HEAD: ${id}`);

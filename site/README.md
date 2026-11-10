@@ -55,38 +55,49 @@ the older twilight tokens in their own `<style>` blocks.
 
 System fonts only: the page loads nothing from another origin.
 
-## Layout — mock 322, connection-first
+## Layout — the vision manifesto (2026-11)
 
-The design source is `design-mocks/322-website-connection-redesign.html`. The page
-leads with connection; competition is an arena you opt into. In order:
+The page is a scroll-told manifesto. Social media is broken, your campus is scattered
+across a dozen apps, and Philoi brings it into one place. In order:
 
-1. Sticky nav: lowercase **philoi** wordmark + "FEE-loy · friends", section links, "Get philoi"
-2. Hero: "Find your people. / Lock in. / Climb your campus.", the "Live on iOS" pill, and a
-   3-phone fan (Lock In · Home · Social reel) with floating cheer / ⚔ challenge / rank-up chips
-3. App gallery: Lock In, Social reel, Leaderboard
-4. Thesis: "Social media runs on comparison. philoi runs on connection."
-5. How it works (3 steps), then Features (6 cards) — each with a mini app-snippet on top
-6. Flex: equipped profile, the Shop, earned-vs-collected lanes, the Flame Pass band, and
-   the flare showing on a leaderboard row and a post
-7. Season pass: "We threw in a season pass, because everyone loves rewards." over Season 1's
-   real reward track (every fifth level, from `forge-pass.ts`), Free + Flame Pass lanes
-8. CTA band, then the footer with Privacy / Terms / Child safety / Delete account / Support
+1. Nav: the wordmark and one "Get Philoi" button, nothing else.
+2. Hero: "University has a social media problem." The signature animation sits in the
+   stage beside it. Fourteen generic-glyph nodes (big apps plus campus chats, clubs,
+   Strava, Forest and Liftoff) start scattered, then pull onto an ellipse around the
+   flame. It plays once on load and replays when you scroll back up. Phones show ten
+   nodes; `.n.w` nodes are wide-screen only. Each node carries `--i` (desktop slot),
+   `--m` (phone slot), `--o`/`--om` (orbit ratio) and `--sx`/`--sy` (scattered position).
+   Positions use CSS `cos()`/`sin()`.
+3. What each app becomes: group chats to Rooms, Strava to Lock In, Forest/Liftoff to
+   Lock In together, feeds to Campfire, finding people to matching, playlists to music.
+4. The problem: four cited stats that count up (Gallup 2023, U.S. Surgeon General 2023,
+   Statistics Canada 2021, Primack et al. 2017). **Never add a number without a source
+   link under it.**
+5. How it works: three beats with illustrative HTML phones (matching, campfire, Lock In).
+6. Built for your campus: verified students, campus and program scoping, one app for
+   your whole degree, rolling out from Laurier. Campus email verification is
+   *optional* in the app, so don't write "sign-up is gated".
+7. The algorithm that connects: "built to bring people together", never "no algorithm".
+8. Competition is a feature: Standings are opt-in and off by default; personal progress
+   leads.
+9. Cosmetics: flames, flares, halos and cards as self-expression. No grind, earn or
+   unlock language.
+10. CTA (iOS, plus an Android beta invite by email) and a footer that links every legal page.
 
-The phones are illustrative HTML, not screenshots. Keep them truthful to the app:
-comment-only social (no likes or follower counts), and shop items use real names
-and rarities from `catalog.ts`. Items come from crates and drops, so tiles are
-tagged with their source, not given a price. Medals are earned, so none sit in the
-Shop. The Flame Pass counts in **levels**. IAP copy must not say "limited time" or
-show a price, and "free" only as "Free track for everyone" (the always-free lane, not
-a trial).
+The phones are illustrative HTML, not screenshots. Keep them truthful to the app. No
+real-person imagery: avatars are gradient circles, and third-party apps appear as text
+labels with generic glyphs, never their logos. Live vs roadmap: music is "connect your
+music", never "we pull your Spotify feed", and there's no claim of importing from other
+networks.
 
-Desktop-first, with breakpoints at 880px (single column, centred hero) and 520px
-(side phones dim, chips move to the empty lower half of the centre phone, grids
-collapse). Motion is CSS plus one small inline script: one-shot scroll reveals, bobbing
-hero phones, drifting chips, a breathing glow, flame flicker, button sheen, shop shimmer,
-gallery tilt, the pass bar filling and levels popping in, and a nav that condenses on
-scroll. The script adds the hidden state itself, so without JS nothing is hidden, and
-`prefers-reduced-motion` switches all of it off.
+Motion: one inline script. The hero merge, one-shot reveals, the stat count-up, and
+looping animations that only run while their `[data-live]` section is on screen. The
+script adds the hidden and scattered states itself, so without JS, or with
+`prefers-reduced-motion`, the page shows its finished state: the integrated ring, every
+section visible, the final numbers.
+
+`philoi.app/{username}` currently 404s on the web (no rewrite), so the page doesn't link
+to it as a live demo.
 
 ## Cosmetic art
 
