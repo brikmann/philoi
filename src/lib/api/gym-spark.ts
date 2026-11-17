@@ -7,8 +7,20 @@ import type { AgoraCursor, AgoraItem } from '@/types/database';
 //   • set_agora_post_pr — the author flags their own post as a PR (composer's "Attach PR", 401).
 // Same firewall as lib/api/agora.ts: nothing here WRITES XP, embers or rank (the board only reads XP).
 
-/** Feed chips (mock 400). 'gym' = every post from everyone; 'following' = people you follow; 'prs' = PR-flagged. */
-export type GymFeedFilter = 'gym' | 'following' | 'prs';
+/**
+ * Feed chips (mock 400 / 409 / 410). 'gym' = every post from everyone; 'following' = people you follow;
+ * 'prs' = PR-flagged (no chip since v2 §4). 'program' / 'patron' (0307, v2 §7/§8) keep items whose AUTHOR's
+ * profiles.program_id / profiles.patron_key equals `value` — your own by default, any one from the pulse
+ * picker. `label` is display-only (the chip and the empty state); the server never sees it.
+ */
+export type GymFeedFilter =
+  | { kind: 'gym' }
+  | { kind: 'following' }
+  | { kind: 'prs' }
+  | { kind: 'program'; value: string; label: string }
+  | { kind: 'patron'; value: string; label: string };
+
+export type GymFeedFilterKind = GymFeedFilter['kind'];
 
 export type GymFeedItem = AgoraItem & {
   is_pr: boolean;
@@ -22,12 +34,17 @@ export async function fetchGymFeed(
   cursor: AgoraCursor | null = null,
   limit = 20
 ): Promise<GymFeedItem[]> {
-  const { data, error } = await supabase.rpc('get_gym_feed' as never, {
-    p_filter: filter,
+  const args: Record<string, unknown> = {
+    p_filter: filter.kind,
     p_before_at: cursor?.created_at ?? null,
     p_before_id: cursor?.id ?? null,
     p_limit: limit,
-  } as never);
+  };
+  // p_value only when the filter carries one: PostgREST resolves the overload by argument NAMES, so
+  // 'gym' / 'following' keep working against the 4-arg function until 0307 is applied (before then,
+  // 'program' / 'patron' error and the screen shows that chip's error state).
+  if (filter.kind === 'program' || filter.kind === 'patron') args.p_value = filter.value;
+  const { data, error } = await supabase.rpc('get_gym_feed' as never, args as never);
   if (error) throw error;
   return (data ?? []) as GymFeedItem[];
 }

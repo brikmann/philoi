@@ -63,6 +63,15 @@ export function sortPatrons(list: Patron[], sort: PatronSort): Patron[] {
   return out;
 }
 
+/**
+ * A one-line tagline from the roster's own `for_line` (mock 410's pulse picker): "those who are born
+ * to lead the room" → "Born to lead the room". Derived, never a second copy of the lore.
+ */
+export function patronTagline(patron: Pick<Patron, 'for_line'>): string {
+  const t = (patron.for_line ?? '').trim().replace(/^those who (are )?/i, '');
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+}
+
 // ── the lockups (mocks 338 / 341) — patron is self-expression, program is the pride badge ──
 
 /** Epic — profile hero + share cards: "Heracles of Kinesiology". Either half alone when that's all there is. */
