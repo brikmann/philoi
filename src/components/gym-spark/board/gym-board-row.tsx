@@ -10,6 +10,9 @@ import type { GymBoardRow } from '@/lib/api/gym-spark';
 // unique since 0305 (row_number), so exactly one row wears each medal. A 0-XP row (your own, always
 // returned) gets no medal even if it lands in the top three of a near-empty board. Your own row wears
 // the ember border/tint wherever it sits.
+// The Fitness pill's lift boards reuse it with `value` (the lift, e.g. "225 lb") and `subline`
+// ("est 1RM") in place of the XP and the week streak; they pass the lift as `row.xp` so the medal
+// rule (podium only for a non-zero value) holds unchanged.
 // The same component draws the pinned copy at the bottom of the screen (`pinned`), so the two can
 // never drift apart.
 
@@ -27,16 +30,26 @@ export function GymBoardRowView({
   onPress,
   pinned = false,
   accessory = null,
+  value,
+  subline,
 }: {
   row: GymBoardRow;
   onPress: (row: GymBoardRow) => void;
   pinned?: boolean;
   /** Drawn after the XP — the story-share button on your own row. */
   accessory?: ReactNode;
+  /** Replaces the big "1,240 XP" — `unit` is drawn small after `text`, like " XP". */
+  value?: { text: string; unit: string; a11y: string };
+  /** Replaces the week-streak line. */
+  subline?: string;
 }) {
   const medal = row.xp > 0 ? MEDALS[row.rank] : undefined;
   const name = row.display_name || (row.handle ? `@${row.handle}` : 'Someone');
   const xpText = formatBoardXp(row.xp);
+  const bigText = value ? value.text : xpText;
+  const bigUnit = value ? value.unit : ' XP';
+  const second = subline ?? (row.week_streak > 0 ? `🔥 ${row.week_streak} wk streak` : 'No streak yet');
+  const a11yValue = value ? value.a11y : `${xpText} XP, ${row.week_streak} week streak`;
 
   return (
     <Pressable
@@ -48,7 +61,7 @@ export function GymBoardRowView({
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Rank ${row.rank}, ${name}${row.is_me ? ', you' : ''}, ${xpText} XP, ${row.week_streak} week streak`}>
+      accessibilityLabel={`Rank ${row.rank}, ${name}${row.is_me ? ', you' : ''}, ${a11yValue}`}>
       <View style={styles.rankCell}>
         {medal ? (
           <Text style={styles.medal}>{medal}</Text>
@@ -67,14 +80,14 @@ export function GymBoardRowView({
           {row.is_me ? <Text style={styles.youTag}>you</Text> : null}
         </View>
         <Text style={styles.streak} numberOfLines={1}>
-          {row.week_streak > 0 ? `🔥 ${row.week_streak} wk streak` : 'No streak yet'}
+          {second}
         </Text>
       </View>
 
       <View style={styles.countCell}>
         <Text style={styles.count} numberOfLines={1} adjustsFontSizeToFit>
-          {xpText}
-          <Text style={styles.countUnit}> XP</Text>
+          {bigText}
+          {bigUnit ? <Text style={styles.countUnit}>{bigUnit}</Text> : null}
         </Text>
       </View>
       {accessory}

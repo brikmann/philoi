@@ -41,6 +41,10 @@ export async function setAgoraPostPr(postId: string, isPr: boolean): Promise<voi
 /** Board tabs (mock 402). 'week' = the current Sunday-00:00-UTC week (lib/time/week.ts ↔ SQL week_start()). */
 export type GymBoardWindow = 'week' | 'all';
 
+/** Board scope (0306). 'everyone' = 0305's board; 'uni' = people whose profiles.university matches yours
+ *  (trimmed, case-insensitive). With no university on your profile, 'uni' returns just your own row. */
+export type GymBoardScope = 'everyone' | 'uni';
+
 export type GymBoardRow = {
   /** 1-based place, unique (0305: row_number over xp desc, display_name, user_id) — one 🥇 / 🥈 / 🥉. */
   rank: number;
@@ -60,8 +64,8 @@ export type GymBoardRow = {
  * The whole board, ranked by XP desc. Everyone with ≥1 XP in the window is on it, and the caller's
  * own row is ALWAYS included (with 0 if they have none) so the screen can pin it.
  */
-export async function fetchGymBoard(window: GymBoardWindow): Promise<GymBoardRow[]> {
-  const { data, error } = await supabase.rpc('get_gym_board' as never, { p_window: window } as never);
+export async function fetchGymBoard(window: GymBoardWindow, scope: GymBoardScope = 'everyone'): Promise<GymBoardRow[]> {
+  const { data, error } = await supabase.rpc('get_gym_board' as never, { p_window: window, p_scope: scope } as never);
   if (error) throw error;
   return (data ?? []) as GymBoardRow[];
 }
