@@ -27,6 +27,7 @@ import { OfflineBanner } from '@/components/offline-banner';
 import { RankUpWatcher } from '@/components/rank-up-watcher';
 import { RelicUnlockWatcher } from '@/components/relic-unlock-watcher';
 import { CindyHeaderFlame } from '@/components/cindy/cindy-header-flame';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useHasAnyCircle } from '@/hooks/use-has-any-circle';
 import { ActiveSessionProvider } from '@/lib/active-session-context';
@@ -613,7 +614,16 @@ function RootNavigator() {
             not as somewhere you navigated to. */}
         <Stack.Screen name="agora/index" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         <Stack.Screen name="agora/[id]" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
-        <Stack.Screen name="agora/compose" options={{ headerShown: false, presentation: 'modal' }} />
+        {/* Spark: the bottom bar's raised ＋ Post opens the composer instantly, like the 🔥 Lock In beside it
+            switches tabs — no modal slide-up. Classic keeps the modal sheet. */}
+        <Stack.Screen
+          name="agora/compose"
+          options={
+            GYM_SPARK
+              ? { headerShown: false, animation: 'none', contentStyle: headerlessContentStyle }
+              : { headerShown: false, presentation: 'modal' }
+          }
+        />
         <Stack.Screen name="agora/import" options={{ headerShown: false, presentation: 'modal' }} />
         <Stack.Screen name="share-intake" options={{ headerShown: false, contentStyle: headerlessContentStyle }} />
         {/* The social layer (0272–0275): identity, forests, grind-alikes. */}
