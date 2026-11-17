@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CoverCard, EmptyLine, ErrorLine, JoinButton, PersonRow, SectionHead, useAddFriend, useJoin } from '@/components/discover/kit';
 import { FirstRunSpine } from '@/components/tutorial/first-run-spine';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import {
   fetchDiscoverRooms,
@@ -23,6 +24,10 @@ import { clearInterestsPending } from '@/lib/interests-flow';
 // and the rooms/clubs that fit what you picked, each with its own Add / Join. Every add is the
 // person's own tap — a friend request is never pre-picked — and each one seeds the first feed, so
 // Home isn't empty on day one. "Enter philoi" and "Skip" both end first run.
+//
+// GYM SPARK: setup is two pages now, so this reveal carries no step counter (it isn't a setup step),
+// and the rooms/clubs half is left out — clubs, Discover and rooms are hidden surfaces in the spark
+// (the gym room is joined server side). Matching is automatic, which the sub line says.
 
 export default function YourPeople() {
   const router = useRouter();
@@ -39,6 +44,11 @@ export default function YourPeople() {
     fetchPeopleForYou(6).then((r) => {
       if (live) setPeople(r.people.filter((p) => !p.is_friend));
     });
+    if (GYM_SPARK) {
+      return () => {
+        live = false;
+      };
+    }
     fetchSuggestedForests(4)
       .then((r) => live && setClubs(r))
       .catch(() => live && setClubs([]));
@@ -67,16 +77,23 @@ export default function YourPeople() {
 
   return (
     <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
-      <View style={styles.spine}>
-        <FirstRunSpine total={4} filled={4} label="SETUP · 4 of 4" />
-      </View>
+      {!GYM_SPARK ? (
+        <View style={styles.spine}>
+          <FirstRunSpine total={4} filled={4} label="SETUP · 4 of 4" />
+        </View>
+      ) : null}
       <ScrollView contentContainerStyle={styles.body}>
         <Text style={styles.h}>Your people</Text>
         <Text style={styles.sub}>Here&apos;s your crew, matched on what you love. Add a few — it&apos;s how Philoi comes alive.</Text>
+        {GYM_SPARK ? <Text style={styles.note}>You&apos;re matchable by default; turn it off in Settings.</Text> : null}
 
         <SectionHead title="People like you" />
         {!people ? <ActivityIndicator color={Colors.navEmber} /> : null}
-        {people && people.length === 0 ? <EmptyLine>No one lines up yet — you&apos;re early. Rooms below are open now.</EmptyLine> : null}
+        {people && people.length === 0 ? (
+          <EmptyLine>
+            {GYM_SPARK ? 'No one lines up yet — you’re early.' : 'No one lines up yet — you’re early. Rooms below are open now.'}
+          </EmptyLine>
+        ) : null}
         {(people ?? []).map((p) => (
           <PersonRow
             key={p.user_id}
@@ -92,36 +109,40 @@ export default function YourPeople() {
         ))}
         <ErrorLine message={adds.error} />
 
-        <SectionHead title="Rooms for you" />
-        <View style={styles.cards}>
-          {(clubs ?? []).map((c) => (
-            <CoverCard
-              key={c.id}
-              id={c.id}
-              emoji={c.emoji}
-              title={c.name}
-              tagline={c.purpose}
-              sub={c.because ? `matches ${c.because}` : `${c.member_count} members`}
-              online={c.locked_in_now}
-              onPress={() => joins.run(c.id, () => joinClub(c.id))}
-              action={<JoinButton label={c.name} state={joins.state[c.id]} onPress={() => joins.run(c.id, () => joinClub(c.id))} />}
-            />
-          ))}
-          {rooms.map((r) => (
-            <CoverCard
-              key={r.id}
-              id={r.id}
-              emoji={r.emoji}
-              title={r.name}
-              sub={profile?.university && r.school === profile.university ? 'your school' : `${r.member_count} members`}
-              online={r.online_count}
-              onPress={() => joins.run(r.id, () => joinRoomFromCard(router, r.id))}
-              action={<JoinButton label={r.name} state={joins.state[r.id]} onPress={() => joins.run(r.id, () => joinRoomFromCard(router, r.id))} />}
-            />
-          ))}
-        </View>
-        {clubs && clubs.length === 0 && rooms.length === 0 ? <EmptyLine>No rooms yet — you can start one from Search.</EmptyLine> : null}
-        <ErrorLine message={joins.error} />
+        {!GYM_SPARK ? (
+          <>
+            <SectionHead title="Rooms for you" />
+            <View style={styles.cards}>
+              {(clubs ?? []).map((c) => (
+                <CoverCard
+                  key={c.id}
+                  id={c.id}
+                  emoji={c.emoji}
+                  title={c.name}
+                  tagline={c.purpose}
+                  sub={c.because ? `matches ${c.because}` : `${c.member_count} ${c.member_count === 1 ? 'member' : 'members'}`}
+                  online={c.locked_in_now}
+                  onPress={() => joins.run(c.id, () => joinClub(c.id))}
+                  action={<JoinButton label={c.name} state={joins.state[c.id]} onPress={() => joins.run(c.id, () => joinClub(c.id))} />}
+                />
+              ))}
+              {rooms.map((r) => (
+                <CoverCard
+                  key={r.id}
+                  id={r.id}
+                  emoji={r.emoji}
+                  title={r.name}
+                  sub={profile?.university && r.school === profile.university ? 'your school' : `${r.member_count} ${r.member_count === 1 ? 'member' : 'members'}`}
+                  online={r.online_count}
+                  onPress={() => joins.run(r.id, () => joinRoomFromCard(router, r.id))}
+                  action={<JoinButton label={r.name} state={joins.state[r.id]} onPress={() => joins.run(r.id, () => joinRoomFromCard(router, r.id))} />}
+                />
+              ))}
+            </View>
+            {clubs && clubs.length === 0 && rooms.length === 0 ? <EmptyLine>No rooms yet — you can start one from Search.</EmptyLine> : null}
+            <ErrorLine message={joins.error} />
+          </>
+        ) : null}
       </ScrollView>
 
       <View style={styles.foot}>
@@ -140,6 +161,7 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.four },
   h: { marginTop: Spacing.three, fontFamily: Fonts.bodyBold, fontSize: 26, color: Colors.ink },
   sub: { marginTop: Spacing.two, fontFamily: Fonts.body, fontSize: 15, lineHeight: 21, color: Colors.muted },
+  note: { marginTop: Spacing.two, fontFamily: Fonts.body, fontSize: 12.5, lineHeight: 17, color: Colors.spaceDim },
   cards: { gap: Spacing.twelve },
   foot: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, gap: Spacing.two },
   skip: { alignItems: 'center', paddingVertical: Spacing.twelve },

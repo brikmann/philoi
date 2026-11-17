@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MatchAvatar } from '@/components/matchmaking/match-avatar';
@@ -5,7 +6,9 @@ import { Colors, Fonts } from '@/constants/theme';
 import type { GymBoardRow } from '@/lib/api/gym-spark';
 
 // One row of THE BOARD (mock 402): place (medals for the podium), avatar, name + week streak, and
-// the big session count on the right. Your own row wears the ember border/tint wherever it sits.
+// the big lock-in count on the right. `row.rank` is the board's 1-based POSITION (board.tsx maps the
+// server's tie-sharing rank() to it), so exactly one row wears each medal. A 0-lock-in row (your own,
+// always returned) gets no medal even if it lands in the top three of a near-empty board. Your own row wears the ember border/tint wherever it sits.
 // The same component draws the pinned copy at the bottom of the screen (`pinned`), so the two can
 // never drift apart.
 
@@ -17,14 +20,17 @@ export function GymBoardRowView({
   row,
   onPress,
   pinned = false,
+  accessory = null,
 }: {
   row: GymBoardRow;
   onPress: (row: GymBoardRow) => void;
   pinned?: boolean;
+  /** Drawn after the count — the story-share button on your own row. */
+  accessory?: ReactNode;
 }) {
-  const medal = MEDALS[row.rank];
+  const medal = row.sessions > 0 ? MEDALS[row.rank] : undefined;
   const name = row.display_name || (row.handle ? `@${row.handle}` : 'Someone');
-  const sessionsLabel = row.sessions === 1 ? 'session' : 'sessions';
+  const sessionsLabel = row.sessions === 1 ? 'lock-in' : 'lock-ins';
 
   return (
     <Pressable
@@ -63,6 +69,7 @@ export function GymBoardRowView({
         <Text style={styles.count}>{row.sessions}</Text>
         <Text style={styles.countLabel}>{sessionsLabel}</Text>
       </View>
+      {accessory}
     </Pressable>
   );
 }

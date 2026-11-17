@@ -1,6 +1,7 @@
 import type { PostgrestError } from '@supabase/supabase-js';
 
 import { isMissingOnServer } from '@/lib/api/chat';
+import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 
 // ROOMS (ShareSpot ss1, migration 0297). A Room IS a `groups` row — the campfire, renamed in the app
@@ -199,7 +200,7 @@ export async function sendRoomMessage(roomId: string, userId: string, channel: s
 /** Live inserts for the whole room; the caller filters by channel (one socket per room, not per pill). */
 export function subscribeToRoom(roomId: string, onInsert: (row: { channel?: string }) => void): () => void {
   const ch = supabase
-    .channel(`room:${roomId}`)
+    .channel(freshTopic(`room:${roomId}`))
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `group_id=eq.${roomId}` },

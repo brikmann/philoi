@@ -1,4 +1,5 @@
 import { track } from '@/lib/analytics';
+import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 import type {
   DifficultyTier,
@@ -210,7 +211,7 @@ export async function reassignTeamMatchRef(challengeId: string, userId: string) 
  */
 export function subscribeToTeamMatch(challengeId: string, onChange: () => void): () => void {
   const channel = supabase
-    .channel(`team_match:${challengeId}`)
+    .channel(freshTopic(`team_match:${challengeId}`))
     .on(
       'postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'social_challenges', filter: `id=eq.${challengeId}` },

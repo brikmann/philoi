@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Alert, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AutoPostSyncedToggle } from '@/components/auto-post-synced-toggle';
+import { NativeConnectCards } from '@/components/connect/native-connect-cards';
 import { DevTools } from '@/components/dev-tools';
 import { CONTACT_EMAIL, FeedbackSheet } from '@/components/feedback-sheet';
 import { RankVisibilityPicker } from '@/components/rank-visibility-picker';
@@ -15,6 +16,7 @@ import { SpaceButton, SpaceCard, SpaceHeader, SpaceSection, SPACE_GUTTER } from 
 import { TextInput } from '@/components/ui/text-input';
 import { Toggle } from '@/components/ui/toggle';
 import { UiGlyph, type UiGlyphName } from '@/components/ui/ui-glyph';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useCindy } from '@/hooks/use-cindy';
 import { useCoachMark } from '@/hooks/use-coach-mark';
@@ -26,6 +28,7 @@ import { setCoachConsent, setCoachPreference } from '@/lib/api/coach';
 import { setDailyGoalMode, setPublishFlameCompletion } from '@/lib/api/daily-fire';
 import { deleteMyAccount } from '@/lib/api/groups';
 import { setMyWatchOptIn } from '@/lib/api/leaderboard-social';
+import { fetchMyMatchSettings, setMyMatchSettings } from '@/lib/api/matchmaking';
 import { track } from '@/lib/analytics';
 import { resetCoachMarks } from '@/lib/coach-marks';
 import { resetTutorial } from '@/lib/tutorial';
@@ -148,6 +151,37 @@ function CompetitionToggleRow() {
       value={competition.on}
       onValueChange={(v) => {
         competition.setOn(v).catch((e) => Alert.alert('Could not save', getErrorMessage(e, 'Try again in a moment.')));
+      }}
+    />
+  );
+}
+
+// GYM SPARK (SPEC_gym_spark_v2 §3): matching is automatic — every account is discoverable by default
+// (0303), and this is the one off-switch. Reads the real row; until it answers the switch shows the
+// default (on). Optimistic, reverted with an alert if the write fails.
+function MatchingToggleRow() {
+  const [discoverable, setDiscoverable] = useState(true);
+  useEffect(() => {
+    let live = true;
+    fetchMyMatchSettings()
+      .then((s) => live && setDiscoverable(s.discoverable))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <SettingsToggleRow
+      icon={{ nav: 'compass' }}
+      label="Show me in matching"
+      description="On by default — it's how people who train like you find you. Off, you won't be matched with anyone and won't see matches."
+      value={discoverable}
+      onValueChange={(v) => {
+        setDiscoverable(v);
+        setMyMatchSettings({ discoverable: v }).catch((e) => {
+          setDiscoverable(!v);
+          Alert.alert('Could not save', getErrorMessage(e, 'Try again in a moment.'));
+        });
       }}
     />
   );
@@ -604,6 +638,15 @@ export default function SettingsScreen() {
             identical in all three. */}
         {/* 0289 · the one competition opt-in (connection-first). Off by default: Standings shows your
             friends, and no placement push ever sends. The same switch onboarding offers. */}
+        {GYM_SPARK ? (
+          <>
+            <SpaceSection>Matching</SpaceSection>
+            <View style={styles.group}>
+              <MatchingToggleRow />
+            </View>
+          </>
+        ) : null}
+
         <SpaceSection>Standings</SpaceSection>
         <View style={styles.group}>
           <CompetitionToggleRow />
@@ -654,6 +697,14 @@ export default function SettingsScreen() {
             something the user is choosing to tell us. The row says what it is FOR: it is the only
             honest answer to "why does a study app know my weight". */}
         <SpaceSection>Connections</SpaceSection>
+        {/* GYM SPARK (§2): the native connect cards lead, so connecting Strava / Calendar is the same
+            card here as at the end of setup. The Integrations row stays below for Apple Health /
+            Health Connect and the calendar's switch-account. */}
+        {GYM_SPARK ? (
+          <View style={styles.connectCards}>
+            <NativeConnectCards />
+          </View>
+        ) : null}
         <View style={styles.group}>
           <SettingsRow
             icon={{ set: 'ruler' }}
@@ -942,6 +993,9 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   // Replay sits in no section of its own — give it the same air a section label would.
+  connectCards: {
+    marginBottom: Spacing.two,
+  },
   groupSpaced: {
     marginTop: Spacing.four,
   },

@@ -9,6 +9,7 @@ import { track } from '@/lib/analytics';
 import type { AgoraVideoSnapshot } from '@/lib/api/agora-video';
 import type { SocialChat } from '@/lib/api/social-chats';
 import { fetchMyFeedChannels } from '@/lib/api/feed-channels';
+import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 import type { AgoraAttachKind } from '@/types/database';
 
@@ -611,7 +612,7 @@ export async function fetchForestMessages(forestId: string): Promise<ForestChatM
 /** Realtime, the DM contract: an INSERT or an UPDATE (a delete is a deleted_at write) refetches. */
 export function subscribeToForestChat(forestId: string, onChange: () => void): () => void {
   const channel = supabase
-    .channel(`forest-chat:${forestId}`)
+    .channel(freshTopic(`forest-chat:${forestId}`))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'forest_messages', filter: `forest_id=eq.${forestId}` },

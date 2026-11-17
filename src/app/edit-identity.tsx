@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { SettingsGlyph } from '@/components/ui/glyphs-settings';
 import { SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { fetchProfileIdentity, setMyIdentity } from '@/lib/api/identity';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -196,12 +197,13 @@ export default function EditIdentityScreen() {
             </View>
 
             <View style={styles.card}>
-              <Text style={styles.k}>Working on</Text>
+              {/* Gym Spark (v2 §8): this line IS the profile's About/bio line, so it's named that. */}
+              <Text style={styles.k}>{GYM_SPARK ? 'Bio' : 'Working on'}</Text>
               <TextInput
                 style={styles.input}
                 value={workingOn}
                 onChangeText={setWorkingOn}
-                placeholder="strength block · orgo midterm · 5k pace"
+                placeholder={GYM_SPARK ? 'a line about you · strength block · 5k pace' : 'strength block · orgo midterm · 5k pace'}
                 placeholderTextColor={Colors.textTertiary}
                 maxLength={MAX_LINE}
               />

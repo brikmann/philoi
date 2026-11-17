@@ -3,10 +3,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { MatchingSwitch } from '@/components/discover/matching-opt-in';
+import { SparkInterestsScreen } from '@/components/onboarding/spark-interests';
 import { FirstRunSpine, SPINE_ROW_HEIGHT } from '@/components/tutorial/first-run-spine';
 import { Icon } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import {
@@ -52,7 +54,15 @@ type Step = 1 | 2;
 
 const MAX_INTERESTS = 12;
 
+// THE GYM SPARK (SPEC_gym_spark_v2 §1, mock 405): the first run here is setup page 2 of 2 — grouped
+// chips, native connect cards, no matching switch (matching is automatic) — drawn by
+// SparkInterestsScreen. ?edit=1 (from Edit identity) keeps the editor below in both modes.
 export default function InterestsScreen() {
+  const { edit } = useLocalSearchParams<{ edit?: string }>();
+  return GYM_SPARK && edit !== '1' ? <SparkInterestsScreen /> : <LegacyInterestsScreen />;
+}
+
+function LegacyInterestsScreen() {
   const router = useRouter();
   const { edit } = useLocalSearchParams<{ edit?: string }>();
   const editing = edit === '1';

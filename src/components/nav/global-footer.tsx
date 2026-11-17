@@ -32,9 +32,9 @@ const TAB_PATHS: Record<string, TabKey> = {
   // Mock 331: the board has no slot of its own any more — Standings is reached from You, so You lights.
   '/leaderboards': 'profile',
   // THE GYM SPARK's Board tab (mock 402). Off the flag the route is a redirect home, so it never lights.
-  // Chat is THE gym room's campfire chat (bottom-bar.tsx), so that one room lights Chat. The bar stays
-  // up on it — it is the way back to Feed — and the campfire composer sits above it like any screen.
-  // Lock In has no slot in spark: on /lockin nothing is lit.
+  // Chat is /chat, which in spark IS the gym room (v2 §7); /group/GYM_ROOM_ID redirects there, and is
+  // mapped too so the bar never flickers unlit for that one frame. The campfire composer sits above the
+  // bar like any screen. Lock In has no slot in spark: on /lockin nothing is lit.
   ...(GYM_SPARK ? { '/board': 'board' as const, [`/group/${GYM_ROOM_ID}`]: 'chat' as const } : {}),
 };
 
@@ -75,6 +75,9 @@ const HIDDEN: string[] = [
 
 const MODAL_SUFFIXES = ['/edit', '/invite'];
 
+/** Spark-only first-run routes with no footer (see isHidden). */
+const SPARK_ONBOARDING = ['/interests', '/discover/matchmaking', '/discover/your-people'];
+
 function isHidden(path: string): boolean {
   if (HIDDEN.some((p) => path === p || path.startsWith(p + '/'))) return true;
   // group/[id]/edit, group/[id]/invite and inventory/[itemId] are modals.
@@ -83,6 +86,10 @@ function isHidden(path: string): boolean {
   // THE GYM SPARK: post detail (mock 403) pins its comment composer to the bottom edge, so — like a
   // chat thread — it owns that edge. Only the detail/sub-routes; the /agora index keeps the bar.
   if (GYM_SPARK && path.startsWith('/agora/')) return true;
+  // THE GYM SPARK onboarding (v2 §1): setup page 2 (interests) and the matching reveal are first-run
+  // pages, not destinations — no bar under them. Spark-only: the classic app still reaches these from
+  // Discover/Settings with the bar up.
+  if (GYM_SPARK && SPARK_ONBOARDING.some((p) => path === p || path.startsWith(p + '/'))) return true;
   return false;
 }
 

@@ -5,10 +5,12 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 
 import { ProgramPicker } from '@/components/house/program-picker';
 import { PatronPicker } from '@/components/patron/patron-picker';
+import { SparkSetupScreen } from '@/components/onboarding/spark-setup';
 import { FirstRunSpine, SPINE_ROW_HEIGHT } from '@/components/tutorial/first-run-spine';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { TextInput } from '@/components/ui/text-input';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
 import { fetchUniversities } from '@/lib/api/groups';
@@ -18,7 +20,7 @@ import { setMyIdentity } from '@/lib/api/identity';
 import { getErrorMessage } from '@/lib/errors';
 import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
 import { markInterestsPending } from '@/lib/interests-flow';
-import { markOnboardingDone } from '@/lib/onboarding';
+import { CONSENT_VERSION, markOnboardingDone, PRIVACY_URL, TERMS_URL } from '@/lib/onboarding';
 import { supabase } from '@/lib/supabase';
 import { markTutorialDone } from '@/lib/tutorial';
 import {
@@ -29,10 +31,6 @@ import {
   shortSchoolName,
 } from '@/lib/universities';
 import type { ProgramRow } from '@/types/house';
-
-const CONSENT_VERSION = '2026-06-30';
-const PRIVACY_URL = 'https://philoi.app/privacy.html';
-const TERMS_URL = 'https://philoi.app/terms.html';
 
 function normalizeHandle(input: string) {
   return input
@@ -96,7 +94,15 @@ const PROGRAM_CONFIRM_NOTE = 'Next, pick your patron — the persona you rep.';
 const MAX_TAG = 24;
 const MAX_TAGS = 8;
 
+// THE GYM SPARK (SPEC_gym_spark_v2 §1, mock 404): setup is ONE page — handle, name, school, consent —
+// and the interests page (/interests) is the second and last. Program, patron and the identity step
+// are not asked; they stay editable from the profile / house screens. Flag off, the five-step run
+// below is untouched.
 export default function SetupHandleScreen() {
+  return GYM_SPARK ? <SparkSetupScreen /> : <LegacySetupHandleScreen />;
+}
+
+function LegacySetupHandleScreen() {
   const { session, profile, refreshProfile } = useAuth();
   // Always step 1, even for a profile that already has a handle: the only account that reaches
   // this screen with one is a half-finished setup, and step 1 is where its consent is asked now.

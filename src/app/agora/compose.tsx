@@ -735,7 +735,7 @@ function FullComposeScreen() {
                     <LaneOption
                       key={`${c.kind}:${c.id}`}
                       label={`${c.emoji} ${c.name}`}
-                      sub={`${c.member_count} members`}
+                      sub={`${c.member_count} ${c.member_count === 1 ? 'member' : 'members'}`}
                       on={lane?.kind === c.kind && lane.id === c.id}
                       onPress={() => chooseLane({ kind: c.kind, id: c.id, name: c.name, emoji: c.emoji })}
                     />

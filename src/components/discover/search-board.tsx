@@ -223,7 +223,7 @@ async function fetchClubs(): Promise<Club[]> {
       name: f.name,
       emoji: f.emoji,
       tagline: f.purpose,
-      why: f.member_count >= POPULAR_MEMBERS ? `★ Popular · ${f.member_count} members` : `${f.member_count} members`,
+      why: f.member_count >= POPULAR_MEMBERS ? `★ Popular · ${f.member_count} members` : `${f.member_count} ${f.member_count === 1 ? 'member' : 'members'}`,
       online: f.locked_in_now,
       mine: f.my_status === 'active',
     });

@@ -1,4 +1,5 @@
 import { GOAL_TYPE_META } from '@/lib/goal-types';
+import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 import type { GoalType } from '@/types/database';
 
@@ -182,7 +183,7 @@ export type LockInInbound =
  */
 export function subscribeToLockInInbound(userId: string, onInbound: (e: LockInInbound) => void): () => void {
   const channel = supabase
-    .channel(`lockin-cheers:${userId}`)
+    .channel(freshTopic(`lockin-cheers:${userId}`))
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'lockin_cheers', filter: `to_user=eq.${userId}` },

@@ -1,0 +1,468 @@
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useId, useState } from 'react';
+import { Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Defs, LinearGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+
+import { LeaderboardPanel } from '@/components/campfire/leaderboard-panel';
+import { CampfireBannerArt } from '@/components/campfire-banner-art';
+import { CampfireOptionsSheet } from '@/components/campfire-options-sheet';
+import { CircleTimeline } from '@/components/circle-timeline';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { GymTopBar } from '@/components/gym-spark/gym-top-bar';
+import { Icon } from '@/components/ui/icon';
+import { NavGlyph } from '@/components/ui/nav-glyph';
+import { Screen } from '@/components/ui/screen';
+import { UiGlyph } from '@/components/ui/ui-glyph';
+import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { useCampfireStats } from '@/hooks/use-campfire-stats';
+import { useChatSupport, useMarkRoomReadWhileFocused } from '@/hooks/use-chat-support';
+import { useGroup } from '@/hooks/use-group';
+import { useMyGroups } from '@/hooks/use-my-groups';
+import { track } from '@/lib/analytics';
+import { fetchCampfireMembers } from '@/lib/api/groups';
+import { useAuth } from '@/lib/auth/auth-context';
+import { useFlameRamp } from '@/lib/economy/flame-ramp';
+import type { CampfireMember } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
+
+// THE CAMPFIRE, AS A FULL-SCREEN CHAT (design-mocks/101-campfire-chat.html).
+//
+// Moved here from app/group/[groupId]/index.tsx (which is now a thin route wrapper) so THE GYM SPARK's
+// Chat tab can render the Laurier Gym room inline as a tab (Gym Spark v2 §7): `asTab` swaps the back
+// chevron for the global GymTopBar, drops the "go back" on the identity block, and leaves the bottom
+// inset to the global footer that stays up under a tab. Everything else is the same campfire screen.
+//
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+// WHAT THIS REPLACES, AND WHY THE TAB BAR HAD TO GO
+//
+// This screen used to be chrome around THREE surfaces — a Leaderboard / Feed / Challenges tab bar,
+// a tall stat header, and whichever tab's content was mounted. Mock 101's argument is that a
+// campfire is a place people talk, and the talking was one third of one tab: you opened your own
+// campfire and landed on a leaderboard.
+//
+// So the chat is the screen. Everything the tab bar used to hold is still here, reached the way
+// Discord reaches it — from the top bar (🏆 leaderboard, ⋯ options) or from the + menu next to the
+// composer. Nothing was deleted; it was demoted from "a third of the screen, permanently" to "one
+// tap, when you want it".
+//
+// WHAT WENT WITH IT:
+//   · The Leaderboard/Feed/Challenges tab bar and `changeTab`. The leaderboard is a panel over
+//     this screen now (LeaderboardPanel); challenges are feed embeds (see circle-timeline.tsx §7).
+//   · The swipe-up-for-full-screen-feed gesture, and the ~50 lines of comment explaining the three
+//     bugs it took to make it work. That mechanic existed to get the feed out from under a tall
+//     header; the feed IS the screen now, so there is nothing to swipe out of. Deleting a
+//     hard-won fix feels wrong, which is why it is worth saying plainly: the fix was correct and
+//     the problem it solved no longer exists.
+//   · The stat strip (avg streak / hours / live challenges) and the lock-in pill. Mock 101's top
+//     bar is name, member/heat line, and two round buttons — nothing else earns permanent space
+//     above a conversation.
+//   · <ChallengesTab/>. Its LOGIC is untouched and still mounted from the top-level Challenges
+//     screen; what changed is that this screen no longer renders it as a tab.
+//
+// WHAT STAYED: the full-screen animated banner, its ErrorBoundary, and the legibility scrim. The
+// chat sits ON the banner — that is the whole look, and it is why every layer below is
+// transparent.
+// ══════════════════════════════════════════════════════════════════════════════════════════════
+
+// ── the ring-lit glow behind the flame tile (mock 174's `.tile::after`) ───────────────────────
+//
+// `radial-gradient(circle, rgba(242,163,60,.5), transparent 70%)` has no React Native equivalent —
+// there are no gradient backgrounds and expo-linear-gradient is not installed — so this is the same
+// measure-and-paint-an-SVG-underneath trick EmberFill documents, with a RadialGradient instead of a
+// linear one. Fixed size rather than measured: the tile is a known 44px box, so there is nothing to
+// wait a layout pass for and the halo is never absent for a frame.
+//
+// 🔴 `useId` IS LOAD-BEARING, not tidiness. react-native-svg gradient ids are GLOBAL — ember-fill.tsx
+// found this the hard way — and a shared literal blanks every instance after the first on Android.
+const HALO = 62;
+
+function TileHalo({ colour }: { colour: string }) {
+  const gradId = `tile-halo-${useId()}`;
+  return (
+    <Svg width={HALO} height={HALO} style={styles.halo} pointerEvents="none">
+      <Defs>
+        <RadialGradient id={gradId} cx="50%" cy="50%" r="50%">
+          <Stop offset="0" stopColor={colour} stopOpacity={0.5} />
+          <Stop offset="0.62" stopColor={colour} stopOpacity={0.14} />
+          <Stop offset="1" stopColor={colour} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect x={0} y={0} width={HALO} height={HALO} fill={`url(#${gradId})`} />
+    </Svg>
+  );
+}
+
+// ── D1 · THE HEADER VEIL — WHY THE BANNER "DOESN'T STRETCH FULL" ──────────────────────────────
+//
+// Noah: "the banner doesn't stretch full like the flare background we made." The banner itself was
+// never the problem — it is already an absoluteFill sibling behind every layer on this screen, and
+// it always was. What made it READ as a contained band was this bar painting a FLAT
+// `rgba(20,14,22,0.55)` across the top of it.
+//
+// The style's own comment described the fix and the code did the opposite of it: "a flat
+// translucent bar would draw a visible bottom edge across the banner; this dissolves into it" sat
+// directly above a flat translucent bar. A constant alpha has a hard terminating edge at
+// paddingBottom, and that edge is the line you read as "where the banner stops" — the banner
+// continues behind it, but nothing tells your eye so.
+//
+// Mock 174's header is `linear-gradient(180deg, rgba(20,14,22,.72), transparent)`, which has no
+// bottom edge at all: it is opaque enough at the status bar to keep the name legible over any
+// banner art, and it is gone by the time it reaches the chat. That is the same trick the flare
+// perimeter aura uses to sit on the screen without framing it.
+//
+// An SVG rather than a background colour, because expo-linear-gradient is not installed — the same
+// measure-and-paint-underneath approach EmberFill and TileHalo above already document.
+//
+// 🔴 `useId` for the gradient id, for the reason TileHalo gives: react-native-svg gradient ids are
+// GLOBAL, and a shared literal blanks every instance after the first on Android.
+function HeaderVeil() {
+  const gradId = `header-veil-${useId()}`;
+  return (
+    <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" preserveAspectRatio="none" pointerEvents="none">
+      <Defs>
+        <LinearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#140E16" stopOpacity={0.72} />
+          <Stop offset="0.55" stopColor="#140E16" stopOpacity={0.42} />
+          <Stop offset="1" stopColor="#140E16" stopOpacity={0} />
+        </LinearGradient>
+      </Defs>
+      <Rect x={0} y={0} width="100%" height="100%" fill={`url(#${gradId})`} />
+    </Svg>
+  );
+}
+
+export function GroupRoom({ groupId, asTab = false }: { groupId: string; asTab?: boolean }) {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { session } = useAuth();
+  const { group, refetch: refetchGroup } = useGroup(groupId);
+  const { groups: myGroups } = useMyGroups();
+  const { stats } = useCampfireStats(groupId);
+  // The tile glows the campfire's equipped-flame colour, so two fires never look like one.
+  const ramp = useFlameRamp();
+
+  const [optionsVisible, setOptionsVisible] = useState(false);
+  const [leaderboardVisible, setLeaderboardVisible] = useState(false);
+  const [chatMutedOverride, setChatMutedOverride] = useState<boolean | null>(null);
+  const [members, setMembers] = useState<CampfireMember[]>([]);
+
+  const chatMuted = chatMutedOverride ?? myGroups.find((g) => g.id === groupId)?.chat_muted ?? false;
+
+  useEffect(() => {
+    track('chat_opened', { group_id: groupId });
+  }, [groupId]);
+
+  // Re-read the group every time this screen regains focus. Campfire settings (group/[id]/edit)
+  // saves the banner, name and emoji and then router.back()s — but its refetch() updates ITS OWN
+  // useGroup instance, not this one, and nothing else invalidates it. Without this the screen you
+  // land back on still holds the pre-save row, so a newly chosen banner never appeared until the
+  // campfire was closed and reopened.
+  useFocusEffect(
+    useCallback(() => {
+      refetchGroup();
+    }, [refetchGroup])
+  );
+
+  // 0284 · this screen IS the campfire's chat, so being on it is what clears the campfire's unread
+  // badge on Social → Chats (chat_reads). A no-op on a server without 0284.
+  useMarkRoomReadWhileFocused('campfire', groupId, useChatSupport());
+
+  // The roster, fetched once here rather than twice below: the @-mention autocomplete and the
+  // ping sheet both need it, and they are both inside the timeline.
+  useEffect(() => {
+    fetchCampfireMembers(groupId)
+      .then(setMembers)
+      .catch(() => {
+        // Mentions and ping degrade to an empty list rather than breaking the chat.
+      });
+  }, [groupId]);
+
+  const memberCount = stats?.member_count ?? members.length;
+  // §1 — STATUS, NOT PLUMBING. This line used to end in the heat word, which rendered as
+  // "· embers" — Noah: "means nothing." A streak is a thing you can lose, so it is the half of the
+  // line worth reading. Hidden entirely at 0 rather than shown as "0-day streak", which reads as an
+  // accusation on a campfire that simply started today.
+  const streakDays = Math.round(stats?.avg_streak ?? 0);
+  const isOwner = myGroups.find((g) => g.id === groupId)?.role === 'owner';
+
+  // Mock 101's top bar is 52px of status bar plus the bar itself. The leaderboard panel opens
+  // BELOW it (frame 3), so it needs to be told where that line falls.
+  // 72, not 66: D1's veil needs a deeper paddingBottom (12 → 18) to fade out in. This constant is
+  // load-bearing beyond the look — it is where the panel's top edge lands — so it moves with it.
+  // As a tab the header is two rows (GymTopBar + the room row), so it is measured rather than assumed.
+  const [measuredTop, setMeasuredTop] = useState<number | null>(null);
+  const topBarHeight = measuredTop ?? insets.top + (asTab ? 124 : 72);
+  const onHeaderLayout = (e: LayoutChangeEvent) => setMeasuredTop(e.nativeEvent.layout.height);
+
+  return (
+    // D1 · `edges={[]}` — THE BANNER'S FULL-BLEED DEPENDS ON IT.
+    //
+    // The banner below is an absoluteFill sibling behind every layer, and it always was; that is
+    // why the previous pass concluded the art was fine and went after the header veil instead. The
+    // veil was a real bug and fixing it was right, but it was never the reason the banner read as
+    // a letterboxed band.
+    //
+    // Screen wraps its children in a SafeAreaView, and SafeAreaView insets with REAL PADDING. An
+    // absoluteFill child fills its padded parent, not the window — so the banner was being clipped
+    // to start below the status bar and stop above the home indicator, which is exactly the
+    // inset/letterboxed band Noah photographed. ScreenBackground (the flare) sits OUTSIDE that
+    // SafeAreaView, which is why the flare reaches the edges and the banner could not: "the banner
+    // doesn't stretch full like the flare background we made" was a precise description of the
+    // difference between being inside that wrapper and being outside it.
+    //
+    // Opting out costs nothing here because this screen ALREADY insets its own chrome and always
+    // has — the top bar pads by `insets.top + 6` and the composer by `insets.bottom` — so the
+    // SafeAreaView was adding a second, duplicate inset on top of the one the layout applies
+    // itself. Removing it makes the banner full-bleed AND stops double-counting the status bar.
+    <Screen padded={false} edges={[]}>
+      {/* Behind everything, above nothing: absolutely filled and non-interactive, so the top bar,
+          the chat and the composer all sit ON the banner rather than each painting their own
+          ground. The art's own veil carries it toward Colors.bgRadialTo — the same colour
+          ScreenBackground's radial settles on — so content legibility is the veil's job and
+          nothing needs a second scrim. */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {/* Decorative backdrop — if a scene ever throws, degrade to no banner (Sentry logs it)
+            rather than white-screen the whole campfire. */}
+        <ErrorBoundary fallback={null}>
+          <CampfireBannerArt itemKey={group?.banner_item_id} variant="screen" animated />
+        </ErrorBoundary>
+      </View>
+
+      {/* ── the top bar (mock 101 frame 1, restyled to mock 174's cover header) ────────────────
+          Ring-lit flame tile + name + one members/streak line on the left; a gold trophy and a
+          quiet kebab on the right. It sits on its own soft gradient rather than a solid bar so the
+          banner reads behind it as an immersive background rather than as art in a slot.
+          The BAR stays compact rather than growing into 174's 172px cover: topBarHeight below is
+          what the leaderboard panel opens beneath, so its height is load-bearing beyond the look. */}
+      <View style={asTab ? { paddingTop: insets.top } : undefined} onLayout={onHeaderLayout}>
+        {/* As a tab (Gym Spark v2): the global bar on top, the room row under it, one veil behind both. */}
+        {asTab ? <HeaderVeil /> : null}
+        {asTab ? <GymTopBar /> : null}
+        <View style={[styles.topBar, asTab ? styles.topBarTab : { paddingTop: insets.top + 6 }]}>
+          {/* D1 · the veil, under the bar's content and over the banner. It fills the bar including
+              its status-bar padding, so the banner runs edge-to-edge and under the clock with
+              nothing but a fade between it and the chat. */}
+          {asTab ? null : <HeaderVeil />}
+          {/* The kit's back chevron, in the on-banner (scrim) variant. The identity block beside it
+              still goes back too — it always did, and people have learned to tap it. A tab has
+              nowhere to go back to, so neither goes back there. */}
+          {asTab ? null : (
+            <Pressable
+              style={styles.iconBtn}
+              onPress={() => router.back()}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Back">
+              <UiGlyph name="back" size={20} color={Colors.ink} />
+            </Pressable>
+          )}
+          <Pressable
+            style={styles.fireId}
+            onPress={asTab ? () => setOptionsVisible(true) : () => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel={asTab ? `${group?.name ?? 'Room'} options` : 'Back to your campfires'}>
+            <View style={styles.fireTile}>
+              <TileHalo colour={ramp.mid} />
+              <View style={[styles.fireEmoji, { borderColor: ramp.mid }]}>
+                {group?.emoji ? (
+                  <Text style={styles.fireEmojiGlyph}>{group.emoji}</Text>
+                ) : (
+                  <Icon name="campfire" size={22} color={Colors.navEmber} />
+                )}
+              </View>
+            </View>
+            <View style={styles.fireText}>
+              <View style={styles.fireNameRow}>
+                <Text style={[styles.fireName, styles.fireNameShrink]} numberOfLines={1}>
+                  {group?.name ?? '…'}
+                </Text>
+                {isOwner ? <Icon name="crown" size={15} color={Colors.gold} /> : null}
+              </View>
+              <View style={styles.fireSubRow}>
+                <NavGlyph name="flame" size={11} color={Colors.navEmber2} />
+                <Text style={styles.fireSub} numberOfLines={1}>
+                  {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                  {streakDays > 0 ? ` · ${streakDays}-day streak` : ''}
+                </Text>
+              </View>
+            </View>
+          </Pressable>
+
+          <View style={styles.topActions}>
+            {/* 0277 · this campfire's channel on the Feed — what members POSTED here (gym comps,
+                clips), as opposed to the chat below. Opens Social's Feed on that chip (mock 320). */}
+            {/* Gym Spark hides Discover (/social), so this button would open a hidden screen. */}
+            {GYM_SPARK ? null : (
+              <Pressable
+                style={styles.iconBtn}
+                onPress={() => router.navigate({ pathname: '/social', params: { channel: `campfire:${groupId}` } })}
+                accessibilityRole="button"
+                accessibilityLabel="Campfire posts">
+                <NavGlyph name="photo" size={18} color={Colors.ink} />
+              </Pressable>
+            )}
+            {/* Phase 8.2 · the 🏆 panel only exists for a campfire whose admins turned standings on
+                (0292, off by default). Off, the options sheet says "Leaderboard off · this club's choice". */}
+            {group?.standings_enabled ? (
+              <Pressable
+                style={[styles.iconBtn, styles.iconBtnLead]}
+                onPress={() => setLeaderboardVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Open the leaderboard">
+                <NavGlyph name="trophy" size={18} color={Colors.gold} />
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={styles.iconBtn}
+              onPress={() => setOptionsVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel={GYM_SPARK ? 'Room options' : 'Campfire options'}>
+              <UiGlyph name="more" size={18} color={Colors.ink} />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+
+      {/* ── the chat ── */}
+      {session && (
+        <CircleTimeline
+          groupId={groupId}
+          myUserId={session.user.id}
+          members={members}
+          // A tab sits above the global footer, which already owns the home-indicator inset.
+          bottomInset={asTab ? 0 : insets.bottom}
+        />
+      )}
+
+      <LeaderboardPanel
+        visible={leaderboardVisible}
+        onClose={() => setLeaderboardVisible(false)}
+        groupId={groupId}
+        myUserId={session?.user.id}
+        topInset={topBarHeight}
+      />
+
+      <CampfireOptionsSheet
+        visible={optionsVisible}
+        onClose={() => setOptionsVisible(false)}
+        group={group}
+        groupId={groupId}
+        chatMuted={chatMuted}
+        onChatMutedChanged={setChatMutedOverride}
+        onGroupChanged={refetchGroup}
+      />
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  // Under GymTopBar: no status-bar padding of its own, and a shallower fade (the veil spans both rows).
+  topBarTab: {
+    paddingTop: 2,
+    paddingBottom: 12,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    paddingHorizontal: 16,
+    // A little deeper than the old 12: the veil needs some run to fade out in, and the fade is
+    // what replaces the hard edge. See HeaderVeil.
+    paddingBottom: 18,
+    // NO backgroundColor. The mock's `linear-gradient(180deg, rgba(20,14,22,.72), transparent)` is
+    // painted by <HeaderVeil/> as the first child, because a flat fill here is exactly the visible
+    // bottom edge that made the banner look like a slot instead of the background (D1).
+  },
+  fireId: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  // The tile and its halo share a box so the glow stays centred on the tile rather than on the
+  // row, which is what makes it read as light coming OFF the flame.
+  fireTile: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  halo: {
+    position: 'absolute',
+    // (44 - 62) / 2 — centres the oversized glow on the tile.
+    left: -9,
+    top: -9,
+  },
+  fireEmoji: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1B1210',
+    // 2px, not 1: mock 174's tile is ring-LIT, and a hairline reads as a border rather than as a
+    // rim catching the fire's own light. borderColor is set per-campfire from the flame ramp.
+    borderWidth: 2,
+  },
+  fireEmojiGlyph: {
+    fontSize: 22,
+    // No lineHeight multiplier: an emoji in a fixed-height box gets clipped on Android.
+  },
+  fireText: {
+    flex: 1,
+  },
+  fireName: {
+    fontFamily: Fonts.black,
+    fontSize: 19,
+    letterSpacing: -0.3,
+    color: Colors.ink,
+  },
+  fireNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  fireNameShrink: {
+    flexShrink: 1,
+  },
+  // Was Colors.heatLabel — the ember-brown that belonged to the heat word this line no longer
+  // carries. A members/streak line is status, so it takes the ordinary secondary text colour and
+  // stops competing with the name above it.
+  fireSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  fireSub: {
+    flexShrink: 1,
+    fontFamily: Fonts.body,
+    fontSize: 11.5,
+    color: Colors.onScrim,
+  },
+  topActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  // The kit's round 36px header button (SpaceIconButton), in its on-banner form: a dark
+  // translucent scrim instead of the opaque spacePanel2 fill, so the banner still reads through it
+  // rather than the chrome punching solid holes in the art.
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.scrimDeep,
+    borderWidth: 1,
+    borderColor: 'rgba(46,35,72,0.9)',
+  },
+  // The trophy — the one gold affordance in the bar. The kebab beside it stays quiet on purpose:
+  // two lit buttons is two calls to action, and only one of them is the prize.
+  iconBtnLead: {
+    backgroundColor: 'rgba(42,31,18,0.72)',
+    borderColor: 'rgba(255,209,102,0.4)',
+  },
+});

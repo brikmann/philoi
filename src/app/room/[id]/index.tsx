@@ -149,7 +149,7 @@ export default function RoomDetailScreen() {
             <View style={styles.headText}>
               <Text style={styles.name}>{r.name}</Text>
               <Text style={styles.meta}>
-                {[`${r.member_count} members`, r.course_code, r.school].filter(Boolean).join(' · ')}
+                {[`${r.member_count} ${r.member_count === 1 ? 'member' : 'members'}`, r.course_code, r.school].filter(Boolean).join(' · ')}
               </Text>
             </View>
             {gate.is_member ? (

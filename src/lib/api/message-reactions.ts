@@ -1,3 +1,4 @@
+import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 
 // MESSAGE REACTIONS (D6, migration 0171) — INSTAGRAM-DM SHAPED, NOT DISCORD-SHAPED.
@@ -76,7 +77,7 @@ export async function setMessageReaction(messageId: string, emoji: string): Prom
  */
 export function subscribeToReactions(groupId: string, onChange: () => void): () => void {
   const channel = supabase
-    .channel(`message_reactions:${groupId}`)
+    .channel(freshTopic(`message_reactions:${groupId}`))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'message_reactions', filter: `group_id=eq.${groupId}` },

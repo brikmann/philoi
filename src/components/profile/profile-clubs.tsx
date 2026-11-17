@@ -7,19 +7,15 @@ import { fetchMyFeedChannels } from '@/lib/api/feed-channels';
 import type { FeedChannel } from '@/types/social';
 
 /**
- * YOUR CLUBS (Phase 8.5, mock 338) — your campfires and forests as chips under About, each opening
- * that room's page. One read, get_my_feed_channels (0280): the same membership list the feed's
- * channel row draws from, liveliest first. Own profile only — a visitor's memberships aren't
- * readable from here, and the block is about where *you* belong.
- *
- * No clubs yet → one quiet way to find some, not an empty heading.
+ * Your clubs — get_my_feed_channels (0280), on focus. `null` = not known (loading, failed, or
+ * `enabled` off) so a caller never draws a wrong "no clubs"/"0 clubs". Own memberships only.
  */
-export function ProfileClubs() {
-  const router = useRouter();
+export function useMyClubs(enabled = true): FeedChannel[] | null {
   const [clubs, setClubs] = useState<FeedChannel[] | null>(null);
 
   useFocusEffect(
     useCallback(() => {
+      if (!enabled) return;
       let live = true;
       fetchMyFeedChannels()
         .then((cs) => {
@@ -31,15 +27,51 @@ export function ProfileClubs() {
       return () => {
         live = false;
       };
-    }, [])
+    }, [enabled])
   );
 
-  if (!clubs) return null;
+  return enabled ? clubs : null;
+}
 
+/** The chips alone — each opens that room's page. Shared by the legacy block and the Gym Spark profile. */
+export function ClubChips({ clubs }: { clubs: FeedChannel[] }) {
+  const router = useRouter();
   const open = (c: FeedChannel) => {
     if (c.kind === 'forest') router.push({ pathname: '/forest/[id]', params: { id: c.id } });
     else router.push({ pathname: '/group/[groupId]', params: { groupId: c.id } });
   };
+  return (
+    <View style={styles.chips}>
+      {clubs.map((c) => (
+        <Pressable
+          key={`${c.kind}:${c.id}`}
+          onPress={() => open(c)}
+          accessibilityRole="button"
+          accessibilityLabel={`Open ${c.name}`}
+          style={({ pressed }) => [styles.chip, pressed && styles.pressed]}>
+          <Text style={styles.chipText} numberOfLines={1}>
+            {c.emoji ? `${c.emoji} ` : ''}
+            {c.name}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+/**
+ * YOUR CLUBS (Phase 8.5, mock 338) — your campfires and forests as chips under About, each opening
+ * that room's page. One read, get_my_feed_channels (0280): the same membership list the feed's
+ * channel row draws from, liveliest first. Own profile only — a visitor's memberships aren't
+ * readable from here, and the block is about where *you* belong.
+ *
+ * No clubs yet → one quiet way to find some, not an empty heading.
+ */
+export function ProfileClubs() {
+  const router = useRouter();
+  const clubs = useMyClubs();
+
+  if (!clubs) return null;
 
   return (
     <View style={styles.block}>
@@ -49,21 +81,7 @@ export function ProfileClubs() {
           <Text style={styles.empty}>You’re not in a club yet — find your people in Discover ›</Text>
         </Pressable>
       ) : (
-        <View style={styles.chips}>
-          {clubs.map((c) => (
-            <Pressable
-              key={`${c.kind}:${c.id}`}
-              onPress={() => open(c)}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${c.name}`}
-              style={({ pressed }) => [styles.chip, pressed && styles.pressed]}>
-              <Text style={styles.chipText} numberOfLines={1}>
-                {c.emoji ? `${c.emoji} ` : ''}
-                {c.name}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <ClubChips clubs={clubs} />
       )}
     </View>
   );

@@ -6,12 +6,15 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/ui/avatar';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { fetchChatLiveNow } from '@/lib/api/chat';
 import { fetchMyDmThreads, type DmThreadSummary } from '@/lib/api/dm';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 
+// THE GYM SPARK (v2 §7): this is where DMs live — reached from the global top bar's ✈, not the Chat tab.
+//
 // MESSAGES = 1:1 DMs ONLY (ShareSpot mock 350). Group chats live in Rooms (Home → Rooms) — the footer
 // says so and links there. Active-now dots come from get_chat_live_now (0291).
 //
@@ -81,12 +84,15 @@ export default function MessagesScreen() {
               tintColor={Colors.navEmber}
             />
           }
+          // THE GYM SPARK has no Rooms (the gym room is the Chat tab), so the pointer there goes.
           ListFooterComponent={
+            GYM_SPARK ? null : (
             <Pressable style={styles.footer} onPress={() => router.navigate('/?pane=rooms' as never)} accessibilityRole="link">
               <Text style={styles.footerText}>
                 Group chats live in <Text style={styles.footerLink}>Rooms</Text>
               </Text>
             </Pressable>
+            )
           }
           ListEmptyComponent={
             <View style={styles.empty}>

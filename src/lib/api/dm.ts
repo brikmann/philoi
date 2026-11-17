@@ -1,4 +1,5 @@
 import { track } from '@/lib/analytics';
+import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 import type { DmMessage } from '@/types/database';
 
@@ -125,7 +126,7 @@ export async function fetchMyDmThreads(): Promise<DmThreadSummary[]> {
  */
 export function subscribeToDmThread(threadId: string, onInsert: () => void): () => void {
   const channel = supabase
-    .channel(`dm:${threadId}`)
+    .channel(freshTopic(`dm:${threadId}`))
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'dm_messages', filter: `thread_id=eq.${threadId}` },

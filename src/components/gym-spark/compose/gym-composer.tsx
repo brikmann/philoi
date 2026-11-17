@@ -18,7 +18,6 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AgoraLockInPicker, type AchievementChoice } from '@/components/agora/agora-pickers';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
@@ -32,7 +31,6 @@ import {
   uploadAgoraVideo,
   type PreparedAgoraVideo,
 } from '@/lib/api/agora-video';
-import { setAgoraPostPr } from '@/lib/api/gym-spark';
 import { markSharedPost } from '@/lib/api/shared-post';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
@@ -40,16 +38,13 @@ import type { ComposeShareParams } from '@/lib/share-intake';
 import { isPostableLink } from '@/lib/share-link';
 import type { AgoraAttachInput } from '@/types/database';
 
-// THE GYM SPARK composer (mock 401, CODE_PROMPT_gym_spark.md §2). Photo, caption, two chips, Post.
-// The bar is "under 20 seconds": nothing is required beyond the post not being totally empty, and
-// there is no audience picker — every spark post is `visibility: 'public'`, which is what puts it in
-// every member's gym feed (get_gym_feed reads the global scope, gated by visibility).
+// THE GYM SPARK composer (mock 401, CODE_PROMPT_gym_spark.md §2; simplified in v2 §5). Media +
+// caption → Post. The bar is "under 20 seconds": nothing is required beyond the post not being totally
+// empty, and there is no audience picker — every spark post is `visibility: 'public'`, which is what
+// puts it in every member's gym feed (get_gym_feed reads the global scope, gated by visibility).
 //
-//   • Attach PR      — a toggle. After the post exists, set_agora_post_pr (0301) flags it. If that
-//                      second call fails the post is NOT lost: a quiet note, then close anyway.
-//   • Attach session — the same AgoraLockInPicker the full composer uses, attached as the same
-//                      `lockin` kind (identity only; the server freezes the snapshot).
-//   • Tag gym        — a stub: one tap shows "coming soon", nothing else.
+// v2 dropped the Attach PR / Attach session / Tag gym chips and the "Posting to The gym feed" footer.
+// PR-flagging returns later (set_agora_post_pr, 0301, is still on the server and in lib/api/gym-spark).
 //
 // Shared-in content (0294's ?source=share) still prefills: text → caption, a photo → the photo slot,
 // a link → a `link` attachment, a clip → the video slot. Rooms / forests stay the full composer's.
@@ -73,14 +68,8 @@ export function GymComposer() {
   const [link, setLink] = useState<string | null>(() =>
     shared && params.sharedUrl && isPostableLink(params.sharedUrl) ? params.sharedUrl : null
   );
-  const [isPr, setIsPr] = useState(false);
-  const [session, setSession] = useState<AchievementChoice | null>(null);
-  const [sessionPicker, setSessionPicker] = useState(false);
-  const [tagHint, setTagHint] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [note, setNote] = useState<string | null>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // The video slot. `preparing` = compress + poster (0…1); `uploading` = the PUT on Post (0…1).
   // videoRun drops a stale prepare when the clip is replaced or removed mid-encode.
@@ -90,15 +79,8 @@ export function GymComposer() {
   const videoRun = useRef(0);
   const sharedVideoRun = useRef<number | null>(null);
 
-  useEffect(
-    () => () => {
-      if (closeTimer.current) clearTimeout(closeTimer.current);
-    },
-    []
-  );
-
   const canPost =
-    Boolean(body.trim() || photoUri || session || link || video) && preparing === null && !posting && note === null;
+    Boolean(body.trim() || photoUri || link || video) && preparing === null && !posting;
 
   function leave() {
     if (router.canGoBack()) router.back();
@@ -186,11 +168,6 @@ export function GymComposer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function chooseSession(choice: AchievementChoice) {
-    setSession(choice);
-    setSessionPicker(false);
-  }
-
   function post() {
     if (!canPost || !profile) return;
     // Spark posts are always public, so a clip confirms once — it never goes public silently.
@@ -211,7 +188,6 @@ export function GymComposer() {
     let postId: string;
     try {
       const attachments: AgoraAttachInput[] = [];
-      if (session) attachments.push({ kind: session.kind, ref_id: session.refId, key: session.key });
       if (video) {
         setUploading(0);
         const key = await uploadAgoraVideo(video, setUploading);
@@ -227,7 +203,7 @@ export function GymComposer() {
     }
     setUploading(null);
     announceAgoraPost({ id: postId, itemType: 'post' });
-    // Best-effort extras: the post exists now, so neither of these may cost it.
+    // Best-effort extra: the post exists now, so the "from your story" tag may not cost it.
     const sharedVideoKept =
       video !== null && sharedVideoRun.current !== null && sharedVideoRun.current === videoRun.current;
     if ((sharedPhoto !== null && photoUri === sharedPhoto) || sharedVideoKept) {
@@ -235,16 +211,6 @@ export function GymComposer() {
         await markSharedPost(postId);
       } catch {
         // Only the "from your story" tag is lost.
-      }
-    }
-    if (isPr) {
-      try {
-        await setAgoraPostPr(postId, true);
-      } catch {
-        setPosting(false);
-        setNote('Posted — the PR tag didn’t stick. You can try again later.');
-        closeTimer.current = setTimeout(leave, 1600);
-        return;
       }
     }
     setPosting(false);
@@ -358,7 +324,7 @@ export function GymComposer() {
               style={styles.input}
               value={body}
               onChangeText={(t) => setBody(t.slice(0, MAX))}
-              placeholder="What moved today?"
+              placeholder="Say something…"
               placeholderTextColor={Colors.textTertiary}
               multiline
               maxLength={MAX}
@@ -366,39 +332,17 @@ export function GymComposer() {
               accessibilityLabel="Caption"
             />
 
-            <View style={styles.chips}>
-              <Chip icon="dumbbell" label="Attach PR" on={isPr} onPress={() => setIsPr((v) => !v)} />
-              <Chip
-                icon="session"
-                label={session ? session.label : 'Attach session'}
-                on={Boolean(session)}
-                onPress={() => setSessionPicker(true)}
-                onClear={session ? () => setSession(null) : undefined}
-              />
-              <Chip icon="plus" label="Tag gym" on={false} onPress={() => setTagHint(true)} />
-              {link ? (
+            {/* Share-intake only: a link shared in from another app rides along as a `link` attachment. */}
+            {link ? (
+              <View style={styles.chips}>
                 <Chip icon="photo" label="Shared link" on onPress={() => {}} onClear={() => setLink(null)} />
-              ) : null}
-            </View>
-            {tagHint ? <Text style={styles.hint}>Gym tags are coming soon.</Text> : null}
-
-            <View style={styles.info}>
-              <Ionicons name="chatbox-outline" size={20} color={Colors.ink} />
-              <Text style={styles.infoTitle} numberOfLines={1}>
-                Posting to The gym feed
-              </Text>
-              <Text style={styles.infoSub} numberOfLines={1}>
-                Public to your gym
-              </Text>
-            </View>
+              </View>
+            ) : null}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            {note ? <Text style={styles.hint}>{note}</Text> : null}
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-
-      <AgoraLockInPicker visible={sessionPicker} onClose={() => setSessionPicker(false)} onPick={chooseSession} />
     </ScreenBackground>
   );
 }
@@ -614,34 +558,6 @@ const styles = StyleSheet.create({
   },
   chipTextOn: {
     color: Colors.onEmber,
-  },
-  hint: {
-    marginTop: -Spacing.two,
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.textTertiary,
-  },
-  info: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.twelve,
-    borderRadius: Radius.card,
-    borderWidth: 1,
-    borderColor: Colors.spaceLine,
-    backgroundColor: Colors.spacePanel,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: 14,
-  },
-  infoTitle: {
-    flex: 1,
-    fontFamily: Fonts.bodyBold,
-    fontSize: 14,
-    color: Colors.ink,
-  },
-  infoSub: {
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    color: Colors.textTertiary,
   },
   error: {
     fontFamily: Fonts.bodySemiBold,

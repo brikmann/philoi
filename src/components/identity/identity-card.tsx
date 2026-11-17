@@ -25,7 +25,7 @@ export function aspirationOf(identity: ProfileIdentity | null): string | null {
   return identity.working_toward?.trim() || identity.career_goal?.trim() || identity.working_on?.trim() || null;
 }
 
-function AnthemChip({ anthem }: { anthem: Anthem }) {
+export function AnthemChip({ anthem }: { anthem: Anthem }) {
   const url = anthem.url ?? null;
   const body = (
     <View style={styles.anthem}>

@@ -24,7 +24,7 @@ export const BoardStoryCard = forwardRef<View, { row: GymBoardRow; window: GymBo
   ref
 ) {
   const rankText = `#${row.rank}`;
-  const sessions = `${row.sessions} session${row.sessions === 1 ? '' : 's'}`;
+  const sessions = `${row.sessions} lock-in${row.sessions === 1 ? '' : 's'}`;
   return (
     <ShareCardFrame ref={ref} kick={boardStoryKick(window)} kickColor={GOLD} kickIcon="trophy" handle={row.handle}>
       <Text style={[styles.rank, { fontSize: fitFontSize(rankText, 132, 84, 3) }]}>{rankText}</Text>

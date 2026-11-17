@@ -2,6 +2,7 @@ import * as Crypto from 'expo-crypto';
 import { File } from 'expo-file-system';
 import { decode } from 'base64-arraybuffer';
 
+import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 import type { Message } from '@/types/database';
 
@@ -195,7 +196,7 @@ export async function deleteMyMessage(messageId: string): Promise<void> {
 // unsubscribe function; caller is responsible for calling it on unmount.
 export function subscribeToMessages(groupId: string, onInsert: () => void): () => void {
   const channel = supabase
-    .channel(`messages:${groupId}`)
+    .channel(freshTopic(`messages:${groupId}`))
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'messages', filter: `group_id=eq.${groupId}` },

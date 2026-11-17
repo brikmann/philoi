@@ -119,7 +119,7 @@ export default function RoomCodeGateScreen() {
                 <Text style={styles.crestText}>{gate.room.emoji || '📚'}</Text>
               </View>
               <Text style={styles.name}>{gate.room.name}</Text>
-              <Text style={styles.meta}>Private room · {gate.room.member_count} members · code required</Text>
+              <Text style={styles.meta}>Private room · {gate.room.member_count} {gate.room.member_count === 1 ? 'member' : 'members'} · code required</Text>
             </>
           ) : (
             <Text style={styles.name}>Enter a room code</Text>

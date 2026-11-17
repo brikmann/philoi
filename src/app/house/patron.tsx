@@ -78,6 +78,9 @@ const styles = StyleSheet.create({
   },
   body: {
     paddingHorizontal: SPACE_GUTTER,
+    // A top inset so the list never starts flush under the header — on device the first patron card
+    // sat hard against the scroll edge and read as clipped (v2 §0.4).
+    paddingTop: Spacing.two,
     paddingBottom: Spacing.four,
     gap: Spacing.three,
   },

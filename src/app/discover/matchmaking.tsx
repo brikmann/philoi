@@ -199,7 +199,7 @@ function toView(summary: MatchSummary | null, nodes: GrindAlike[], school: strin
   const note =
     s.total === 0
       ? 'No one lines up yet. New people join every day, and rooms are open now.'
-      : `Found ${s.total} ${s.total === 1 ? 'person' : 'people'} who vibe with you`;
+      : `Found ${s.total} ${s.total === 1 ? 'person' : 'people'} who vibes with you`;
   return { total: s.total, signals: shown, note };
 }
 

@@ -4,15 +4,17 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GymPostCard } from '@/components/gym-spark/gym-post-card';
+import { GymTopBar } from '@/components/gym-spark/gym-top-bar';
 import { PrStoryButton } from '@/components/gym-spark/share/pr-story-button';
 import { useGymPostModeration } from '@/components/gym-spark/use-gym-post-moderation';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useNotifications } from '@/hooks/use-notifications';
+import { useActiveSession } from '@/lib/active-session-context';
 import { fetchGymFeed, type GymFeedFilter, type GymFeedItem } from '@/lib/api/gym-spark';
 
-// THE GYM SPARK · the Feed, which is home (mock 400). `philoi` + 🔔, three chips (The gym · Following ·
-// PRs) over get_gym_feed, newest first, a FAB that opens the composer. Comment-only — no cheer anywhere.
+// THE GYM SPARK · the Feed, which is home (mock 400). The global GymTopBar (✈ 🔔 ☰, v2 §6), two chips
+// (Feed · Following — v2 §4 dropped PRs) over get_gym_feed, newest first, a FAB that opens the composer.
+// Comment-only — no cheer anywhere. "Start session" rides on the chip row: the bar itself is globals only.
 //
 // Refreshes on focus, so a post you just made (compose → detail → back) and a comment you just left
 // (its 💬 count and the top-comment line) are both there when you land back here. The refetch asks
@@ -21,21 +23,22 @@ import { fetchGymFeed, type GymFeedFilter, type GymFeedItem } from '@/lib/api/gy
 const PAGE = 20;
 const FOCUS_CAP = 60;
 
+// 'prs' stays a valid GymFeedFilter (the server still serves it) but has no chip since v2 §4.
 const FILTERS: { key: GymFeedFilter; label: string }[] = [
-  { key: 'gym', label: 'The gym' },
+  { key: 'gym', label: 'Feed' },
   { key: 'following', label: 'Following' },
-  { key: 'prs', label: 'PRs' },
 ];
 
 const EMPTY: Record<GymFeedFilter, string> = {
-  gym: 'Nothing posted yet. Be the first — tap + and post your session.',
+  gym: 'Nothing posted yet. Be the first — tap + and post something.',
   following: 'Nobody you follow has posted yet.',
-  prs: 'No PRs yet. Hit one, then tap + and attach it.',
+  prs: 'No PRs yet.',
 };
 
 export function GymFeedScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ lockin?: string }>();
+  const { session: activeSession } = useActiveSession();
   const [filter, setFilter] = useState<GymFeedFilter>('gym');
   const [items, setItems] = useState<GymFeedItem[] | null>(null);
   const [error, setError] = useState(false);
@@ -129,8 +132,9 @@ export function GymFeedScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      <SparkHeader />
+      <GymTopBar />
 
+      <View style={styles.chipRow}>
       <View style={styles.chips} accessibilityRole="tablist">
         {FILTERS.map((f) => {
           const on = f.key === filter;
@@ -145,6 +149,17 @@ export function GymFeedScreen() {
             </Pressable>
           );
         })}
+      </View>
+        {/* Lock In left the bar in this build (Feed · Board · Chat · You) — starting a session is an
+            action here instead, and it still feeds the Board. A running one goes back to it. */}
+        <Pressable
+          onPress={() => (activeSession ? router.push('/lock-in') : router.navigate('/lockin'))}
+          style={styles.start}
+          accessibilityRole="button"
+          accessibilityLabel={activeSession ? 'Return to your session' : 'Start session'}>
+          <NavGlyph name="flame" size={15} color="#1A1030" />
+          <Text style={styles.startText}>{activeSession ? 'Your session' : 'Start session'}</Text>
+        </Pressable>
       </View>
 
       {items === null ? (
@@ -195,74 +210,11 @@ function Separator() {
   return <View style={styles.sep} />;
 }
 
-/** `philoi` + 🔔 — the Spark's header. No ✉ / ☰: those are hidden surfaces in this build. */
-function SparkHeader() {
-  const router = useRouter();
-  const { unread, refreshCount } = useNotifications();
-
-  // Tabs stay mounted, so the badge refreshes on focus (same as AppTopBar).
-  useFocusEffect(
-    useCallback(() => {
-      refreshCount();
-    }, [refreshCount])
-  );
-
-  return (
-    <View style={styles.header}>
-      <Text style={styles.wordmark}>philoi</Text>
-      <View style={styles.headerRight}>
-        {/* Lock In left the bar in this build (Feed · Board · Chat · You) — starting a session is an
-            action here instead, and it still feeds the Board. */}
-        <Pressable
-          onPress={() => router.navigate('/lockin')}
-          style={styles.start}
-          accessibilityRole="button"
-          accessibilityLabel="Start session">
-          <NavGlyph name="flame" size={15} color="#1A1030" />
-          <Text style={styles.startText}>Start session</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/notifications')}
-          hitSlop={8}
-          style={styles.bell}
-          accessibilityRole="button"
-          accessibilityLabel={unread > 0 ? `Notifications, ${unread} unread` : 'Notifications'}>
-          <NavGlyph name="bell" size={22} color={Colors.ink} />
-          {unread > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{unread > 9 ? '9+' : unread}</Text>
-            </View>
-          ) : null}
-        </Pressable>
-      </View>
-    </View>
-  );
-}
-
 const FAB = 58;
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.twelve,
-  },
-  wordmark: {
-    fontFamily: Fonts.black,
-    fontSize: 26,
-    letterSpacing: -0.6,
-    color: Colors.ink,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
   },
   start: {
     flexDirection: 'row',
@@ -280,34 +232,17 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     color: '#1A1030',
   },
-  bell: {
-    width: 40,
-    height: 40,
+  chipRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: 2,
-    right: 2,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    paddingHorizontal: 3,
-    backgroundColor: Colors.navEmber,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: {
-    fontFamily: Fonts.black,
-    fontSize: 9,
-    color: '#1A1030',
+    justifyContent: 'space-between',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.twelve,
   },
   chips: {
     flexDirection: 'row',
     gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.twelve,
   },
   chip: {
     paddingHorizontal: 18,

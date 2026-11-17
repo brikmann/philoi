@@ -160,7 +160,7 @@ export function RoomsTab() {
                   {g.name}
                 </Text>
                 <Text style={styles.last} numberOfLines={1}>
-                  {[g.course_code, g.school ?? g.owner_university, `${g.member_count} members`].filter(Boolean).join(' · ')}
+                  {[g.course_code, g.school ?? g.owner_university, `${g.member_count} ${g.member_count === 1 ? 'member' : 'members'}`].filter(Boolean).join(' · ')}
                 </Text>
               </View>
               <Pressable

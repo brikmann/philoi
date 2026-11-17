@@ -123,10 +123,11 @@ export function ProfileHero({
                 )}
               </EquippedAvatarHalo>
               <View style={styles.info}>
-                {/* The seal sits OUTSIDE the name's text so a long name truncates and the house
-                    stays. Nothing renders without one — the name line is then exactly as before. */}
+                {/* The seal sits OUTSIDE the name's text so a long name wraps and the house stays.
+                    Two lines, not one: beside a 66px haloed avatar and two seals, a one-line 20px
+                    name ellipsized ordinary full names ("Noah Brik…", v2 §0.4). */}
                 <View style={styles.nameRow}>
-                  <BurningName userId={userId} style={styles.name} suffix={nameSuffix} hero>
+                  <BurningName userId={userId} style={styles.name} suffix={nameSuffix} numberOfLines={2} hero>
                     {name}
                   </BurningName>
                   <HouseSeal userId={userId} size={22} style={styles.seal} />

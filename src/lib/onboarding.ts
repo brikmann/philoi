@@ -12,3 +12,9 @@ export async function isOnboardingDone(): Promise<boolean> {
 export async function markOnboardingDone(): Promise<void> {
   await AsyncStorage.setItem(ONBOARDING_DONE_KEY, 'true');
 }
+
+// The setup consent (setup-handle.tsx, and the Gym Spark page 1 in components/onboarding). One copy,
+// so the two setup shapes can never write different consent versions or link different documents.
+export const CONSENT_VERSION = '2026-06-30';
+export const PRIVACY_URL = 'https://philoi.app/privacy.html';
+export const TERMS_URL = 'https://philoi.app/terms.html';

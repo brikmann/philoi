@@ -14,20 +14,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { GYM_BOARD_ROW_HEIGHT, GymBoardRowView } from '@/components/gym-spark/board/gym-board-row';
 import { useGymBoard } from '@/components/gym-spark/board/use-gym-board';
-import { EmberCta } from '@/components/lockin-hub/ember-cta';
-import { AppTopBar } from '@/components/nav/app-top-bar';
+import { GymTopBar } from '@/components/gym-spark/gym-top-bar';
 import { BoardStoryButton } from '@/components/gym-spark/share/board-story-button';
-import { NavGlyph } from '@/components/ui/nav-glyph';
+import { EmberCta } from '@/components/lockin-hub/ember-cta';
 import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
-import { useActiveSession } from '@/lib/active-session-context';
 import type { GymBoardRow, GymBoardWindow } from '@/lib/api/gym-spark';
 import { formatWeekCountdown } from '@/lib/time/week';
 
-// THE BOARD (GYM_SPARK, mock 402, CODE_PROMPT_gym_spark.md §3). One leaderboard, everyone on it,
-// ranked by sessions — This week (Sunday 00:00 UTC reset, lib/time/week.ts ↔ SQL week_start()) or
-// All-time. Reads get_gym_board through lib/api/gym-spark.ts; the ranking metric is the server's to
-// swap, this screen just draws `sessions`.
+// THE BOARD (GYM_SPARK, mock 402, CODE_PROMPT_gym_spark.md §3, v2 §6). One generic activity
+// leaderboard, everyone on it, ranked by lock-ins — This week (Sunday 00:00 UTC reset, lib/time/week.ts
+// ↔ SQL week_start()) or All-time. Reads get_gym_board through lib/api/gym-spark.ts; the ranking metric
+// is the server's to swap, this screen just draws `sessions` (labelled "lock-ins").
+//
+// v2: the global GymTopBar on top (✈ 🔔 ☰ — nothing Board-specific in it), and the body is only the
+// toggle + the ranked list. The story-share button moved from the bar onto your own row.
+//
+// PLACES, NOT SERVER RANKS. get_gym_board uses rank(), so ties share a rank — and in a small gym where
+// most people have 1 session this week, nearly everyone came back rank 1 and wore 🥇. The server's
+// order is already deterministic (value desc, display_name, user_id), so the board draws 1-based
+// POSITION in that order: exactly one 🥇, one 🥈, one 🥉, numbers after. Tie order is alphabetical,
+// which is arbitrary but stable; the story card shares the same place the row shows.
 //
 // YOUR ROW, ALWAYS: the server always returns the caller's row. It is highlighted in place, and when
 // it is not on screen a copy is pinned over the bottom of the list. "On screen" is FlatList's own
@@ -54,8 +61,9 @@ export default function BoardScreen() {
 function SparkBoard() {
   const router = useRouter();
   const [range, setRange] = useState<GymBoardWindow>('week');
-  const { rows, failed, refreshing, refresh, resetInMs } = useGymBoard(range);
-  const { session: activeSession } = useActiveSession();
+  const { rows: serverRows, failed, refreshing, refresh, resetInMs } = useGymBoard(range);
+  // Position, not rank() — see PLACES above. Your 0-lock-in row (always returned) keeps its place too.
+  const rows = serverRows?.map((r, i) => (r.rank === i + 1 ? r : { ...r, rank: i + 1 })) ?? null;
   // Starts true so a caller on the podium never sees the pin flash before the first viewability pass.
   const [meVisible, setMeVisible] = useState(true);
 
@@ -80,19 +88,7 @@ function SparkBoard() {
 
   return (
     <SafeAreaView edges={['top']} style={styles.safe}>
-      {/* `right` is the slot for the Board's story-sticker share (built separately): it renders
-          beside the ✉ / 🔔 / ☰ globals. `me` is the caller's GymBoardRow (null until loaded) and
-          `range` is the GymBoardWindow on screen. */}
-      <AppTopBar title="The Board" right={<BoardStoryButton row={me} window={range} />} />
-
-      {/* Spec §5: Lock In left the bar, so starting one is an action here (and on the Feed). With a
-          session already running it goes back to it instead — the bar's live dot went with the slot. */}
-      <EmberCta
-        label={activeSession ? 'Return to your session' : 'Start session'}
-        leading={<NavGlyph name="flame" size={18} color="#2A0F05" />}
-        onPress={() => (activeSession ? router.push('/lock-in') : router.navigate('/lockin'))}
-        style={styles.startCta}
-      />
+      <GymTopBar />
 
       <View style={styles.tabs} accessibilityRole="tablist">
         {TABS.map((t) => {
@@ -111,7 +107,7 @@ function SparkBoard() {
       </View>
 
       <View style={styles.captionRow}>
-        <Text style={styles.caption}>{range === 'week' ? 'RANKED BY SESSIONS · RESETS SUNDAY' : 'ALL-TIME SESSIONS'}</Text>
+        <Text style={styles.caption}>{range === 'week' ? 'LOCK-INS THIS WEEK · RESETS SUNDAY' : 'ALL-TIME LOCK-INS'}</Text>
         {range === 'week' ? <Text style={styles.countdown}>{formatWeekCountdown(resetInMs)} left</Text> : null}
       </View>
 
@@ -121,7 +117,13 @@ function SparkBoard() {
           key={range}
           data={listRows}
           keyExtractor={(r) => r.user_id}
-          renderItem={({ item }) => <GymBoardRowView row={item} onPress={openRow} />}
+          renderItem={({ item }) => (
+            <GymBoardRowView
+              row={item}
+              onPress={openRow}
+              accessory={item.is_me ? <BoardStoryButton row={item} window={range} /> : null}
+            />
+          )}
           getItemLayout={(_, index) => ({ length: GYM_BOARD_ROW_HEIGHT, offset: GYM_BOARD_ROW_HEIGHT * index, index })}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={VIEWABILITY}
@@ -146,9 +148,9 @@ function SparkBoard() {
               )
             ) : (
               <View style={styles.state}>
-                <Text style={styles.stateTitle}>{range === 'week' ? 'No sessions yet this week' : 'No sessions yet'}</Text>
+                <Text style={styles.stateTitle}>{range === 'week' ? 'No lock-ins yet this week' : 'No lock-ins yet'}</Text>
                 <Text style={styles.stateBody}>Lock in to get on the board.</Text>
-                <EmberCta label="Start a session" onPress={() => router.navigate('/lockin')} style={styles.stateCta} />
+                <EmberCta label="Lock in" onPress={() => router.navigate('/lockin')} style={styles.stateCta} />
               </View>
             )
           }
@@ -156,7 +158,12 @@ function SparkBoard() {
 
         {showPinned && me ? (
           <View style={styles.pinned} pointerEvents="box-none">
-            <GymBoardRowView row={me} onPress={openRow} pinned />
+            <GymBoardRowView
+              row={me}
+              onPress={openRow}
+              pinned
+              accessory={<BoardStoryButton row={me} window={range} />}
+            />
           </View>
         ) : null}
       </View>
@@ -167,10 +174,6 @@ function SparkBoard() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-  },
-  startCta: {
-    marginHorizontal: Spacing.three,
-    marginBottom: Spacing.twelve,
   },
   tabs: {
     flexDirection: 'row',

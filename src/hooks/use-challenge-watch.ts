@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useGatedInterval } from '@/hooks/use-motion-active';
 import { fetchChallengeWatch, fetchGroupChallengeWatch } from '@/lib/api/leaderboard-social';
 import { getErrorMessage } from '@/lib/errors';
+import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 import type { ChallengeWatch, GroupChallengeWatchRow } from '@/types/database';
 
@@ -37,7 +38,7 @@ export function useChallengeWatch(challengeId: string) {
 
   useEffect(() => {
     const channel = supabase
-      .channel(`challenge-watch-${challengeId}`)
+      .channel(freshTopic(`challenge-watch-${challengeId}`))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lock_in_sessions' }, refetch)
       .subscribe();
@@ -73,7 +74,7 @@ export function useGroupChallengeWatch(challengeId: string) {
 
   useEffect(() => {
     const channel = supabase
-      .channel(`group-challenge-watch-${challengeId}`)
+      .channel(freshTopic(`group-challenge-watch-${challengeId}`))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'check_ins' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lock_in_sessions' }, refetch)
       .subscribe();
