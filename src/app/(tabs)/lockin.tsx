@@ -26,6 +26,7 @@ import { useCompetition } from '@/lib/competition';
 import { setSessionAudioChoice } from '@/lib/economy/equipped-audio';
 import { goalTypeForChoice } from '@/lib/goal-types';
 import type { AgoraItem, FitnessActivity, LockInCategory, SocialChallenge } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // LOCK IN — the tab (ShareSpot ss4 §A, mock 347). Pencil icon on the bar: the study/project signal,
 // never an "Arena" or crossed swords.
@@ -195,7 +196,7 @@ export default function LockInTab() {
         ) : null}
 
         {/* ── 4 · the feed — a feed, not a stat sheet ── */}
-        <SectionLabel>Study season 📚</SectionLabel>
+        <SectionLabel>{GYM_SPARK ? 'Lock-in season 🔥' : 'Study season 📚'}</SectionLabel>
         <HubFeed items={feed} onCompose={() => router.push('/agora/compose')} />
 
         {/* ── 5 · challenges ── */}

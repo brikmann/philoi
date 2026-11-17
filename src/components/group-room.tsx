@@ -261,7 +261,7 @@ export function GroupRoom({ groupId, asTab = false }: { groupId: string; asTab?:
             style={styles.fireId}
             onPress={asTab ? () => setOptionsVisible(true) : () => router.back()}
             accessibilityRole="button"
-            accessibilityLabel={asTab ? `${group?.name ?? 'Room'} options` : 'Back to your campfires'}>
+            accessibilityLabel={asTab ? `${group?.name ?? 'Room'} options` : GYM_SPARK ? 'Back' : 'Back to your campfires'}>
             <View style={styles.fireTile}>
               <TileHalo colour={ramp.mid} />
               <View style={[styles.fireEmoji, { borderColor: ramp.mid }]}>

@@ -150,7 +150,7 @@ function CampfireUrlCard({ onOpen }: { onOpen: () => void }) {
   const name = profile.display_name || 'You';
   return (
     <View style={styles.urlCard}>
-      <Pressable style={styles.urlTop} onPress={onOpen} accessibilityRole="button" accessibilityLabel="Your Campfire">
+      <Pressable style={styles.urlTop} onPress={onOpen} accessibilityRole="button" accessibilityLabel={GYM_SPARK ? 'Your profile' : 'Your Campfire'}>
         {profile.avatar_url ? (
           <Image source={{ uri: profile.avatar_url }} style={styles.urlAvatar} />
         ) : (
@@ -175,7 +175,7 @@ function CampfireUrlCard({ onOpen }: { onOpen: () => void }) {
             style={[styles.urlBtn, styles.urlBtnPrimary]}
             onPress={() => void Share.share({ message: `Come find me on Philoi — https://${url}` })}
             accessibilityRole="button">
-            <Text style={[styles.urlBtnText, styles.urlBtnTextPrimary]}>📣 Share campfire</Text>
+            <Text style={[styles.urlBtnText, styles.urlBtnTextPrimary]}>{GYM_SPARK ? '📣 Share profile' : '📣 Share campfire'}</Text>
           </Pressable>
           <Pressable
             style={styles.urlBtn}

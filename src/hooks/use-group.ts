@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchGroup } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
 import type { Group } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 export function useGroup(groupId: string) {
   const [group, setGroup] = useState<Group | null>(null);
@@ -21,7 +22,7 @@ export function useGroup(groupId: string) {
       setError(null);
       setGroup(await fetchGroup(groupId));
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not load this Campfire.'));
+      setError(getErrorMessage(e, GYM_SPARK ? 'Could not load this room.' : 'Could not load this Campfire.'));
     } finally {
       setLoading(false);
     }

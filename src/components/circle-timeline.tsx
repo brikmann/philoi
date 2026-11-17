@@ -28,7 +28,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import { IconText } from '@/components/ui/icon';
 import { TextInput } from '@/components/ui/text-input';
 import { UiGlyph } from '@/components/ui/ui-glyph';
-import { CHAT_ENABLED } from '@/constants/feature-flags';
+import { CHAT_ENABLED, GYM_SPARK } from '@/constants/feature-flags';
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useActiveCircleLockIns } from '@/hooks/use-active-circle-lockins';
@@ -898,7 +898,7 @@ export function CircleTimeline({ groupId, myUserId, members, bottomInset }: Circ
           <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
-            placeholder="Message the campfire…"
+            placeholder={GYM_SPARK ? 'Message the gym…' : 'Message the campfire…'}
             value={draft}
             onChangeText={setDraft}
             onSelectionChange={(e) => setCaret(e.nativeEvent.selection.start)}

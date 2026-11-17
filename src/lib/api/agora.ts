@@ -15,6 +15,7 @@ import type {
   AgoraScope,
   AgoraVisibility,
 } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // The Agora (AGORA_SPEC.md, mocks 160 + 162) — the town square.
 //
@@ -433,7 +434,7 @@ export function audienceTag(item: Pick<AgoraItem, 'audience' | 'audience_name' |
   const audience = item.audience ?? (item.visibility === 'public' ? 'everyone' : item.visibility);
   switch (audience) {
     case 'campfire':
-      return { label: item.audience_name ?? 'Campfire', emoji: item.audience_emoji || null, icon: 'campfire' };
+      return { label: item.audience_name ?? (GYM_SPARK ? 'Room' : 'Campfire'), emoji: item.audience_emoji || null, icon: 'campfire' };
     case 'forest':
       return { label: item.audience_name ?? 'Forest', emoji: item.audience_emoji || null, icon: 'forest' };
     case 'everyone':

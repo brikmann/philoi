@@ -5,6 +5,7 @@ import { Toggle } from '@/components/ui/toggle';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { setMyAutoPostSynced } from '@/lib/api/groups';
 import { getErrorMessage } from '@/lib/errors';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // Per-campfire consent to auto-post a synced workout (PHILOI_UI_SPEC.md §17b) — publishing on
 // the user's behalf, so this is opt-in, default off, and scoped to exactly the one campfire it's
@@ -32,7 +33,7 @@ export function AutoPostSyncedToggle({
       await setMyAutoPostSynced(groupId, value);
     } catch (e) {
       setEnabled(previous);
-      setError(getErrorMessage(e, 'Could not update this campfire.'));
+      setError(getErrorMessage(e, GYM_SPARK ? 'Could not update this room.' : 'Could not update this campfire.'));
     }
   }
 

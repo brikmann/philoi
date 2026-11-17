@@ -11,6 +11,7 @@ import { fetchProgramsForUniversity, setMyProgram } from '@/lib/api/house';
 import { getErrorMessage } from '@/lib/errors';
 import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
 import type { ProgramRow } from '@/types/house';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // ── CHANGE YOUR PROGRAM ──
 //
@@ -109,7 +110,7 @@ export default function ChangeProgramScreen() {
               onConfirm={(p) => void save(p)}
               saving={saving}
               confirmLabel="Save program"
-              title={profile?.program_id ? 'Change your program' : 'What do you study?'}
+              title={profile?.program_id ? 'Change your program' : GYM_SPARK ? "What's your program?" : 'What do you study?'}
             />
           ))}
         {error ? <Text style={styles.error}>{error}</Text> : null}

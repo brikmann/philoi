@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // THE CHALLENGE CARD IN THE CHAT (CHALLENGE_CINDY_SCOPING.md §Distribution, migration 0162).
 //
@@ -55,7 +56,7 @@ export function ChallengeChatCard({
           <NavGlyph name="flame" size={13} color={Colors.navEmber2} />
         </View>
         <View style={styles.headText}>
-          <Text style={styles.kicker}>{isOwn ? 'You hosted a challenge' : 'Campfire challenge'}</Text>
+          <Text style={styles.kicker}>{isOwn ? 'You hosted a challenge' : GYM_SPARK ? 'Room challenge' : 'Campfire challenge'}</Text>
           {headline ? (
             <Text style={styles.headline} numberOfLines={3}>
               {headline}

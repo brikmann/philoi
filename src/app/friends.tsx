@@ -9,6 +9,7 @@ import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { fetchChatLiveNow } from '@/lib/api/chat';
 import { fetchMyFriends, type Friend } from '@/lib/api/friends';
 import { getErrorMessage } from '@/lib/errors';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // FRIENDS (ShareSpot mock 370). Name + status + active dot. ONE primary action per row (Message),
 // the row itself opens their Campfire. No rank, no "going cold" — a friend's quiet week is not
@@ -109,7 +110,7 @@ export default function FriendsScreen() {
                 style={styles.row}
                 onPress={() => router.push({ pathname: '/friend-profile', params: { userId: f.friend_id } })}
                 accessibilityRole="button"
-                accessibilityLabel={`${f.display_name}'s Campfire`}>
+                accessibilityLabel={GYM_SPARK ? `${f.display_name}'s profile` : `${f.display_name}'s Campfire`}>
                 <View>
                   {f.avatar_url ? (
                     <Image source={{ uri: f.avatar_url }} style={styles.avatar} />

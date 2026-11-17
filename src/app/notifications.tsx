@@ -18,6 +18,7 @@ import { getItem } from '@/lib/economy/catalog';
 import { formatRelativeTime } from '@/lib/format';
 import { RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { NotificationEvent, NotificationImageShape, RankTierName } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // The bell feed (§F1, mock 106).
 //
@@ -107,7 +108,11 @@ export default function NotificationsScreen() {
               <FlameLogo size={56} />
               <SpaceEmpty
                 title="Nothing yet"
-                body="Friend requests, challenges and campfire activity will show up here."
+                body={
+                  GYM_SPARK
+                    ? 'Friend requests, comments and gym activity will show up here.'
+                    : 'Friend requests, challenges and campfire activity will show up here.'
+                }
               />
             </View>
           )

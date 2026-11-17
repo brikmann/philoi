@@ -18,6 +18,7 @@ import type {
   UniversityTotal,
   WeeklyRecap,
 } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 export type MyGroup = Group & {
   /**
@@ -268,7 +269,7 @@ export async function requestToJoinGroup(groupId: string): Promise<void> {
 export async function fetchCampfirePreview(groupId: string): Promise<CampfirePreview> {
   const { data, error } = await supabase.rpc('get_campfire_preview', { p_group_id: groupId });
   if (error) throw error;
-  if (!data?.[0]) throw new Error('Campfire not found.');
+  if (!data?.[0]) throw new Error(GYM_SPARK ? 'Room not found.' : 'Campfire not found.');
   return data[0];
 }
 

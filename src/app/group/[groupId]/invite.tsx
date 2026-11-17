@@ -13,6 +13,7 @@ import { useCampfireHeat } from '@/hooks/use-campfire-heat';
 import { useGroup } from '@/hooks/use-group';
 import { track } from '@/lib/analytics';
 import { fetchInviteLink } from '@/lib/api/groups';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 type InviteLink = { code: string; deepLink: string; webLink: string };
 
@@ -46,7 +47,7 @@ export default function InviteScreen() {
     setSharing(true);
     try {
       track('invite_sent', { group_id: group.id, source: 'invite_screen' });
-      await Share.share({ message: `Join my Campfire on Philoi. Code: ${webLink.code} — or tap: ${webLink.webLink}` });
+      await Share.share({ message: `Join my ${GYM_SPARK ? 'room' : 'Campfire'} on Philoi. Code: ${webLink.code} — or tap: ${webLink.webLink}` });
     } finally {
       setSharing(false);
     }
@@ -54,7 +55,7 @@ export default function InviteScreen() {
 
   return (
     <Screen padded={false} style={styles.container}>
-      <SpaceHeader title="Invite to your campfire" onBack={() => router.back()} />
+      <SpaceHeader title={GYM_SPARK ? 'Invite to your room' : 'Invite to your campfire'} onBack={() => router.back()} />
 
       <View style={styles.body}>
         <View style={styles.hero}>
@@ -64,7 +65,7 @@ export default function InviteScreen() {
           <Text style={styles.sub}>Anyone with this code can join and lock in with you.</Text>
         </View>
 
-        <SpaceSection>Campfire code</SpaceSection>
+        <SpaceSection>{GYM_SPARK ? 'Room code' : 'Campfire code'}</SpaceSection>
         <SpaceCard style={styles.codeCard}>
           <Text style={styles.codeValue}>{code}</Text>
           <Pressable onPress={handleCopyCode} style={styles.copyBtn} accessibilityRole="button" accessibilityLabel="Copy code">

@@ -22,6 +22,7 @@ import { fetchCampfireMembers, setCampfireMemberRole } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import type { CampfireMember } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // MEMBERS & ROLES — where the campfire's keys are handed out (migration 0094).
 //
@@ -205,8 +206,8 @@ export default function CampfireMembersScreen() {
 
           {isOwner && (
             <Text style={styles.footnote}>
-              Admins can edit the campfire, approve join requests and run challenges. Only you can delete
-              the campfire or change who&apos;s an admin.
+              Admins can edit the {GYM_SPARK ? 'room' : 'campfire'}, approve join requests and run challenges. Only you can
+              delete the {GYM_SPARK ? 'room' : 'campfire'} or change who&apos;s an admin.
             </Text>
           )}
         </ScrollView>
@@ -218,7 +219,7 @@ export default function CampfireMembersScreen() {
         body={
           pending?.role === 'admin'
             ? `${pending.display_name} will go back to being a regular member — no editing, no approving joins, no starting challenges.`
-            : `${pending?.display_name ?? 'They'} will be able to edit this campfire, approve join requests and start challenges. They won't be able to delete it.`
+            : `${pending?.display_name ?? 'They'} will be able to edit this ${GYM_SPARK ? 'room' : 'campfire'}, approve join requests and start challenges. They won't be able to delete it.`
         }
         confirmLabel={pending?.role === 'admin' ? 'Remove' : 'Make admin'}
         destructive={pending?.role === 'admin'}

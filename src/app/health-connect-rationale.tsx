@@ -4,6 +4,7 @@ import { Screen } from '@/components/ui/screen';
 import { SpaceCard, SpaceHeader, SpaceSection, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // Health Connect's Play Store requirement: an app that requests health permissions must state,
 // plainly and visibly, what it reads and why — this is that statement. Reachable normally from
@@ -45,10 +46,10 @@ export default function HealthConnectRationaleScreen() {
           <Text style={styles.body}>What we never do: read any other Health Connect data type, write anything back to Health Connect, or export your raw step history.</Text>
         </SpaceCard>
 
-        <SpaceSection>What your campfire sees</SpaceSection>
+        <SpaceSection>{GYM_SPARK ? 'What your gym sees' : 'What your campfire sees'}</SpaceSection>
         <SpaceCard>
           <Text style={styles.body}>
-            What your campfire sees: only the same running total everyone already sees for a manually-logged
+            {GYM_SPARK ? 'What your gym sees' : 'What your campfire sees'}: only the same running total everyone already sees for a manually-logged
             challenge — e.g. &quot;8,200 / 10,000 steps.&quot; Nobody sees your Health Connect data itself.
           </Text>
         </SpaceCard>

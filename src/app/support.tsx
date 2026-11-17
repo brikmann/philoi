@@ -7,6 +7,7 @@ import { SpaceCard, SpaceHeader, SPACE_GUTTER } from '@/components/ui/space-kit'
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth/auth-context';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // "TALK TO SOMEONE" — mock 116 frame 3, the support surface APP_BLOCKER_SPEC §C-safety requires
 // ("pairs with a lightweight support-resources surface in-app — build a minimal one if none
@@ -38,7 +39,7 @@ export default function SupportScreen() {
       icon: 'chat',
       tint: 'rgba(120,220,160,0.15)',
       title: 'Text a friend',
-      detail: 'Someone from your campfire, or anyone you trust',
+      detail: GYM_SPARK ? 'Someone from your gym, or anyone you trust' : 'Someone from your campfire, or anyone you trust',
       // Routes into the app's own social layer rather than out to a dialler — the healthiest
       // version of the urge that brought them here is usually a person they already have.
       action: () => router.push('/people'),

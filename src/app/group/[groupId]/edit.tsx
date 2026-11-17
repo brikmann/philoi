@@ -20,6 +20,7 @@ import { getErrorMessage } from '@/lib/errors';
 import { GOAL_TYPE_GLYPH } from '@/lib/goal-types';
 import { RANK_TIER_LABEL, RANK_TIER_METAL } from '@/lib/rank-tiers';
 import type { CampfirePrivacy, GoalType, RankTierName } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // Same lightweight theme set as group/create.tsx — kept in sync there rather than shared,
 // since duplicating a 4-line array is cheaper than a shared-module indirection for two files.
@@ -83,7 +84,7 @@ export default function EditGroupScreen() {
 
   async function handleSave() {
     if (!name.trim()) {
-      setError('Give your campfire a name.');
+      setError(GYM_SPARK ? 'Give your room a name.' : 'Give your campfire a name.');
       return;
     }
     setLoading(true);
@@ -110,7 +111,7 @@ export default function EditGroupScreen() {
       await refetch();
       router.back();
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not update your campfire.'));
+      setError(getErrorMessage(e, GYM_SPARK ? 'Could not update your room.' : 'Could not update your campfire.'));
     } finally {
       setLoading(false);
     }
@@ -121,7 +122,7 @@ export default function EditGroupScreen() {
       {/* A modal, so the kit header without a back chevron — the close sits on the right, where it
           always was. */}
       <SpaceHeader
-        title="Edit campfire"
+        title={GYM_SPARK ? 'Edit room' : 'Edit campfire'}
         back={false}
         right={
           <SpaceIconButton onPress={() => router.back()} label="Close">
@@ -154,7 +155,7 @@ export default function EditGroupScreen() {
             style={styles.bannerRow}
             onPress={() => setBannerPickerOpen(true)}
             accessibilityRole="button"
-            accessibilityLabel="Choose this campfire's banner">
+            accessibilityLabel={GYM_SPARK ? "Choose this room's banner" : "Choose this campfire's banner"}>
             <View style={styles.bannerSwatch}>
               <CampfireBannerArt itemKey={bannerId} fadeTo="#161022" />
             </View>

@@ -12,6 +12,7 @@ import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
 import { UiGlyph } from '@/components/ui/ui-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // THE + MENU (mock 101 frame 2) — "one button for everything richer than a message".
 //
@@ -114,7 +115,7 @@ export function CampfireFab({
         style={[styles.fabPos, { bottom: bottom + Spacing.two }]}
         onPress={onToggle}
         accessibilityRole="button"
-        accessibilityLabel={open ? 'Close the campfire menu' : 'Open the campfire menu'}
+        accessibilityLabel={open ? (GYM_SPARK ? 'Close the room menu' : 'Close the campfire menu') : GYM_SPARK ? 'Open the room menu' : 'Open the campfire menu'}
         accessibilityState={{ expanded: open }}>
         {/* The kit's primary ember (SpaceButton's fill + glow) in a circle; the + is the kit's add
             glyph, still rotated by plusStyle into an × while the menu is open. */}

@@ -5,6 +5,7 @@ import { ScopedRewardTease } from '@/components/cindy/scoped-reward-tease';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { DifficultyTier } from '@/types/database';
 import type { CoachAction } from '@/lib/api/coach';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // The action chip (mock 115 frames 2 + 5: "▶ BU111 · Work · started", "🏆 Milestone posted").
 //
@@ -151,7 +152,7 @@ function confirmVerb(action: CoachAction): string {
     case 'host_campfire_challenge':
       // Not "Create it". This posts to a whole campfire — the verb should say where it lands, so
       // nobody taps a generic confirm and is surprised by forty people getting a push.
-      return 'Post it to the campfire';
+      return GYM_SPARK ? 'Post it to the room' : 'Post it to the campfire';
     default:
       return 'Do it';
   }
@@ -169,7 +170,7 @@ function receiptFor(action: CoachAction): string {
     case 'host_campfire_challenge':
       // Says where it went. The receipt for a campfire post should name the outcome the user
       // cannot see from this screen — the card is in a chat they may not be looking at.
-      return `${action.summary} · posted to the campfire`;
+      return `${action.summary} · posted to the ${GYM_SPARK ? 'room' : 'campfire'}`;
     default:
       return action.summary;
   }

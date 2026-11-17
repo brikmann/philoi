@@ -9,6 +9,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { pingCampfireMember } from '@/lib/api/campfire-ping';
 import { getErrorMessage } from '@/lib/errors';
 import type { CampfireMember, PingResult } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // PING A MEMBER · SILENT NUDGE (mock 101 frame 2, fourth row).
 //
@@ -112,7 +113,11 @@ export function PingMemberSheet({
 
           <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
             {others.length === 0 ? (
-              <Text style={styles.empty}>Nobody else is in this campfire yet. Invite someone first.</Text>
+              <Text style={styles.empty}>
+                {GYM_SPARK
+                  ? 'Nobody else is in this room yet. Invite someone first.'
+                  : 'Nobody else is in this campfire yet. Invite someone first.'}
+              </Text>
             ) : (
               others.map((m) => {
                 const result = results[m.user_id];

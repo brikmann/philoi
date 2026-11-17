@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 import { track } from '@/lib/analytics';
 import { isLockInInboundSurfaceActive, LOCKIN_CHEER_PUSH_TYPES } from '@/lib/api/lockin-cheers';
 import { supabase } from '@/lib/supabase';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // Without this, expo-notifications silently swallows the banner/sound for any push that
 // arrives while the app is in the foreground — the OS still receives it, but nothing shows
@@ -50,7 +51,7 @@ async function ensureNotificationChannels() {
   });
   await Notifications.setNotificationChannelAsync('messages', {
     name: 'Messages',
-    description: 'Campfire chat.',
+    description: GYM_SPARK ? 'Chat messages.' : 'Campfire chat.',
     importance: Notifications.AndroidImportance.DEFAULT,
   });
 }
@@ -196,7 +197,7 @@ export async function setGroupReminder(input: {
   const notificationId = await Notifications.scheduleNotificationAsync({
     content: {
       title: `${input.groupName} — don't break the streak`,
-      body: "Your Campfire's counting on you. Lock in today.",
+      body: GYM_SPARK ? "Your gym's counting on you. Lock in today." : "Your Campfire's counting on you. Lock in today.",
     },
     // DAILY, not CALENDAR — CALENDAR triggers are iOS-only in expo-notifications.
     trigger: {

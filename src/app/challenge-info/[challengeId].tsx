@@ -59,6 +59,7 @@ import type {
   SocialChallenge,
   SocialChallengeRaceMetric,
 } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // Challenge / Goal info — design-mocks/102 v2, the screen that makes the minimal card possible.
 //
@@ -316,7 +317,7 @@ function PrizeCard({
 }) {
   const boxKey = asBoxKey(scoped?.box);
   const box = boxKey ? BOXES[boxKey] : null;
-  const campfire = c.circle_name ?? 'campfire';
+  const campfire = c.circle_name ?? (GYM_SPARK ? 'room' : 'campfire');
   const note = placement
     ? 'Bigger field pays more · reward scales with your band'
     : 'All or nothing · each share scales with where you place';
@@ -459,7 +460,7 @@ function LiveRace({
     // figure is the house's, with yours beside it.
     const mine = me?.member_progress ?? null;
     standing = {
-      label: 'THE CAMPFIRE',
+      label: GYM_SPARK ? 'THE ROOM' : 'THE CAMPFIRE',
       big: `${doneCount}`,
       small: `of ${sorted.length} done`,
       fig: mine != null ? fig(mine) : '—',
@@ -867,7 +868,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
   // 0212 / mock 217 — every racer in a campfire race leaves with a permanent placement title
   // ("Goat 2nd Place Finisher"), win or not. Not on a duel: it has an opponent, not a campfire field.
   const finisherRows: Row[] = c.circle_id
-    ? [{ k: settled ? 'Every finisher earned' : 'Every finisher earns', v: `A permanent ${c.circle_name ?? 'campfire'} title` }]
+    ? [{ k: settled ? 'Every finisher earned' : 'Every finisher earns', v: `A permanent ${c.circle_name ?? (GYM_SPARK ? 'room' : 'campfire')} title` }]
     : [];
 
   const rows: Row[] = duel
@@ -882,7 +883,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
         // The tiebreak is the spec's resolution rule, stated here because it is precisely the
         // sort of thing nobody thinks about until it decides their challenge.
         { k: "If it's a tie", v: 'First to reach it' },
-        { k: 'Campfire watching', v: c.circle_id ? 'On' : 'Off' },
+        { k: GYM_SPARK ? 'Room watching' : 'Campfire watching', v: c.circle_id ? 'On' : 'Off' },
       ]
     : placement
       ? [
@@ -897,7 +898,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           // doesn't exist here.
           { k: 'Racing', v: `${c.accepted_count} in` },
           { k: 'Tiebreak', v: 'Same figure, same rank' },
-          { k: 'Campfire', v: c.circle_name ?? '—' },
+          { k: GYM_SPARK ? 'Room' : 'Campfire', v: c.circle_name ?? '—' },
         ]
       : [
           { k: 'Type', v: c.pooled ? 'Shared total' : 'Collective goal' },
@@ -920,14 +921,14 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
             ? { k: settled ? 'Contributors took' : 'Contributors take', v: `up to +${c.payout_xp} XP when it's hit`, highlight: true }
             : { k: settled ? 'Everyone took' : 'Everyone takes', v: `up to +${c.payout_xp} XP`, highlight: true },
           ...(c.pooled && c.reward_top_contributor
-            ? [{ k: 'Top contributor', v: `+ more embers · “${c.circle_name ?? 'Campfire'} Top Contributor” title` }]
+            ? [{ k: 'Top contributor', v: `+ more embers · “${c.circle_name ?? (GYM_SPARK ? 'Room' : 'Campfire')} Top Contributor” title` }]
             : []),
           ...scopedRows,
           ...finisherRows,
           // The racers, not the campfire — since 0096 this is an invited subset, and the count on
           // the card is the one settlement uses (0112).
           { k: 'Racing', v: `${c.accepted_count} in${c.invited_count > 0 ? ` · ${c.invited_count} yet to answer` : ''}` },
-          { k: 'Campfire', v: c.circle_name ?? '—' },
+          { k: GYM_SPARK ? 'Room' : 'Campfire', v: c.circle_name ?? '—' },
         ];
 
   // The one paragraph that explains rather than lists — shared by both layouts.
@@ -948,7 +949,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
         </Text>
       ) : placement ? (
         <Text style={styles.noteText}>
-          <Text style={styles.noteStrong}>Everyone places.</Text> The whole campfire is entered and the
+          <Text style={styles.noteStrong}>Everyone places.</Text> The whole {GYM_SPARK ? 'room' : 'campfire'} is entered and the
           board is ranked on {metricNoun(c.race_metric, c.lockin_goal_type)} when the clock hits zero. There is nothing to
           pass or fail — your reward scales with the band you finish in, and a bigger field pays more
           for the same band. Race nothing and you still get a rank, just no payout.
@@ -987,7 +988,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
                 {challengeTitle(c)}
               </Text>
               <Text style={styles.raceMeta} numberOfLines={2}>
-                {metricLabel(c.race_metric, c.lockin_goal_type)} · <Text style={styles.raceMetaStrong}>{c.circle_name ?? 'Campfire'}</Text> ·{' '}
+                {metricLabel(c.race_metric, c.lockin_goal_type)} · <Text style={styles.raceMetaStrong}>{c.circle_name ?? (GYM_SPARK ? 'Room' : 'Campfire')}</Text> ·{' '}
                 {c.accepted_count} racing · {settled ? 'ended' : 'ends'}{' '}
                 <Text style={styles.raceMetaStrong}>{endsText(c, false)}</Text>
               </Text>
@@ -1024,7 +1025,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
                 pooled={c.pooled ? { rewardTop: !!c.reward_top_contributor } : null}
                 boxKey={scopedBox}
                 embers={scoped?.embers ?? null}
-                campfire={c.circle_name ?? 'Campfire'}
+                campfire={c.circle_name ?? (GYM_SPARK ? 'Room' : 'Campfire')}
                 settled={settled}
                 myPlace={settled ? reward?.placement ?? null : null}
                 initiallyOpen={false}
@@ -1078,7 +1079,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
               <Text style={styles.houseCountMuted}> racing</Text>
             </Text>
             <Text style={styles.competitorName} numberOfLines={1}>
-              {c.circle_name ?? 'the campfire'}
+              {c.circle_name ?? (GYM_SPARK ? 'the room' : 'the campfire')}
             </Text>
           </View>
         ) : (
@@ -1093,7 +1094,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
               <Text style={styles.houseCountMuted}> / {c.member_count ?? c.accepted_count} done</Text>
             </Text>
             <Text style={styles.competitorName} numberOfLines={1}>
-              {c.circle_name ?? 'the campfire'}
+              {c.circle_name ?? (GYM_SPARK ? 'the room' : 'the campfire')}
             </Text>
           </View>
         )}
@@ -1116,7 +1117,7 @@ function SocialInfoBody({ c, refetch }: { c: SocialChallenge; refetch: () => Pro
           <PrizePoolPanel
             boxKey={scopedBox}
             embers={scoped?.embers ?? null}
-            campfire={c.circle_name ?? 'Campfire'}
+            campfire={c.circle_name ?? (GYM_SPARK ? 'Room' : 'Campfire')}
             settled={settled}
             myPlace={settled ? reward?.placement ?? null : null}
           />

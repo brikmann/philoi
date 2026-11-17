@@ -20,6 +20,7 @@ import { asBoxKey, TIER_COLOR } from '@/lib/challenge-tier';
 import { BOXES } from '@/lib/economy/boxes';
 import { getErrorMessage } from '@/lib/errors';
 import type { DifficultyTier, ScopedRewardPreview, SocialChallengeRaceMetric } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // DUEL + CINDY REFEREE (ShareSpot ss4 §D, mock 361).
 //
@@ -276,7 +277,7 @@ export default function DuelScreen() {
             setAsk(t);
             invalidate();
           }}
-          placeholder={`Who can study more for KP344 this week 📚`}
+          placeholder={GYM_SPARK ? 'Who locks in more this week 🔥' : `Who can study more for KP344 this week 📚`}
           placeholderTextColor={Colors.spaceFaint}
           style={styles.input}
           multiline

@@ -309,7 +309,13 @@ export default function ProfileScreen() {
         <EditRow
           icon="school-outline"
           label={myProgram ? 'Change program' : 'Add your program'}
-          sub={myProgram ? myProgram.program_abbrev || myProgram.name : 'What you study — your pride badge'}
+          sub={
+            myProgram
+              ? myProgram.program_abbrev || myProgram.name
+              : GYM_SPARK
+                ? 'Your program — your pride badge'
+                : 'What you study — your pride badge'
+          }
           onPress={() => {
             setEditOpen(false);
             router.push('/house/change-program');

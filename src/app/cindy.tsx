@@ -26,6 +26,7 @@ import {
   type CoachAction,
   type CoachMessage,
 } from '@/lib/api/coach';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // CINDY CHAT — mock 115 frames 2, 3 and 5.
 //
@@ -505,7 +506,7 @@ function CindyOpener() {
       </Text>
       <View style={styles.examples}>
         <Text style={styles.example}>“How much do I need to lock in to hit Hero?”</Text>
-        <Text style={styles.example}>“Start a study session for BU111”</Text>
+        <Text style={styles.example}>{GYM_SPARK ? '“Start a gym session”' : '“Start a study session for BU111”'}</Text>
         <Text style={styles.example}>“How am I doing this week?”</Text>
       </View>
     </View>

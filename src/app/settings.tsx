@@ -60,14 +60,14 @@ import type { PhotoVisibility, RankVisibility } from '@/types/database';
 // and finally the once-a-year rows (help, legal, purchases, account).
 
 const PHOTO_VISIBILITY_LABEL: Record<PhotoVisibility, string> = {
-  campfires: 'My campfires',
+  campfires: GYM_SPARK ? 'My rooms' : 'My campfires',
   everyone: 'Everyone',
   private: 'Just me',
 };
 
 // Order + copy per PHILOI_UI_SPEC.md §19. 'campfires' is the default.
 const PHOTO_VISIBILITY_OPTIONS: { value: PhotoVisibility; description: string }[] = [
-  { value: 'campfires', description: 'People in campfires you share' },
+  { value: 'campfires', description: GYM_SPARK ? 'People in rooms you share' : 'People in campfires you share' },
   { value: 'everyone', description: 'Anyone on Philoi' },
   { value: 'private', description: 'A private journal only you can see' },
 ];
@@ -576,7 +576,7 @@ export default function SettingsScreen() {
           )}
           <SettingsToggleRow
             icon={{ ui: 'send' }}
-            label="Publish completion to campfires"
+            label={GYM_SPARK ? 'Publish completion to your rooms' : 'Publish completion to campfires'}
             value={publishCompletion}
             onValueChange={handleTogglePublishCompletion}
           />
@@ -615,7 +615,11 @@ export default function SettingsScreen() {
           <SettingsToggleRow
             icon={{ nav: 'book' }}
             label="Show what I'm locked in on"
-            description="Adds the discipline — STUDY · LIFTING · CARDIO · DEEP WORK. Off = just “Locked in”."
+            description={
+              GYM_SPARK
+                ? 'Adds the discipline — LIFTING · CARDIO · DEEP WORK. Off = just “Locked in”.'
+                : 'Adds the discipline — STUDY · LIFTING · CARDIO · DEEP WORK. Off = just “Locked in”.'
+            }
             value={livePrefs.show_live_activity}
             onValueChange={(v) => handleChangeLivePref('show_live_activity', v)}
           />
@@ -775,7 +779,9 @@ export default function SettingsScreen() {
           <>
             <SpaceSection>Auto-post synced workouts</SpaceSection>
             <Text style={[styles.sectionHint, styles.sectionHintAbove]}>
-              When a synced workout becomes a lock-in, post it automatically to the campfires you turn on below.
+              {GYM_SPARK
+                ? 'When a synced workout becomes a lock-in, post it automatically to the rooms you turn on below.'
+                : 'When a synced workout becomes a lock-in, post it automatically to the campfires you turn on below.'}
             </Text>
             <SpaceCard style={styles.listCard}>
               {groups.map((group) => (
@@ -885,7 +891,9 @@ export default function SettingsScreen() {
             <View style={styles.sheetGrabber} />
             <Text style={styles.sheetTitle}>Who can see my photos</Text>
             <Text style={styles.sheetSubtitle}>
-              Applies to your profile grid and your photos shown around campfires.
+              {GYM_SPARK
+                ? 'Applies to your profile grid and your photos shown around your rooms.'
+                : 'Applies to your profile grid and your photos shown around campfires.'}
             </Text>
             {PHOTO_VISIBILITY_OPTIONS.map((option) => {
               const selected = option.value === photoVisibility;
@@ -920,7 +928,7 @@ export default function SettingsScreen() {
             <Text style={styles.sheetTitle}>Delete account</Text>
             <Text style={styles.sheetSubtitle}>
               This permanently deletes your profile, all lock-ins, photos, streaks, XP and rank, and your
-              campfire memberships. It can&apos;t be undone.
+              {GYM_SPARK ? 'room' : 'campfire'} memberships. It can&apos;t be undone.
             </Text>
             <Text style={styles.confirmPrompt}>
               Type <Text style={styles.confirmWord}>{DELETE_CONFIRM_WORD}</Text> to confirm.

@@ -31,6 +31,7 @@ import { GOAL_TYPE_GLYPH, GOAL_TYPE_META } from '@/lib/goal-types';
 import { formatRankTier, xpProgressRatio } from '@/lib/rank-tiers';
 import { fireConfirm, fireFlameMeterComplete } from '@/lib/reward-feedback';
 import type { GoalType, MyRank } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 type FlameMeterCompleteProps = {
   displayName: string;
@@ -260,7 +261,7 @@ export function FlameMeterComplete({
       fireConfirm();
       onDone();
     } catch (e) {
-      setError(getErrorMessage(e, 'Could not post to the campfire — try again.'));
+      setError(getErrorMessage(e, GYM_SPARK ? 'Could not post to the room — try again.' : 'Could not post to the campfire — try again.'));
     } finally {
       setPosting(false);
     }
@@ -376,7 +377,7 @@ export function FlameMeterComplete({
           </Pressable>
           <View style={styles.subacts}>
             <Pressable onPress={handlePost} disabled={posting}>
-              <Text style={styles.postLink}>{posting ? 'Posting…' : `Post to ${circleName ?? 'the campfire'}`}</Text>
+              <Text style={styles.postLink}>{posting ? 'Posting…' : `Post to ${circleName ?? (GYM_SPARK ? 'the room' : 'the campfire')}`}</Text>
             </Pressable>
             <Pressable onPress={onDone} disabled={posting}>
               <Text style={styles.doneLink}>Done</Text>

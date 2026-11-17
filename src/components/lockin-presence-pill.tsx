@@ -6,6 +6,7 @@ import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useReduceMotion } from '@/hooks/use-reduce-motion';
 import type { LockInPresence, LockInPresenceKey } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 /**
  * "540 studying right now" — the live presence pill, beside the flame on the running lock-in
@@ -35,11 +36,18 @@ type Line = (n: string, campus: string | null) => string;
 const LINE: Record<LockInPresenceKey, Record<'now' | 'today' | 'week', Line>> = {
   // The study room also counts Deep Work, on purpose (0186 folds deep_work into 'study' — see
   // presenceCountFor). Deep Work is focus work too, and a separate room would thin the number.
-  study: {
-    now: (n, c) => (c ? `${n} studying at ${c} right now` : `${n} studying right now`),
-    today: (n, c) => (c ? `${n} studied at ${c} today` : `${n} studied today`),
-    week: (n, c) => (c ? `${n} studied at ${c} this week` : `${n} studied this week`),
-  },
+  // Gym Spark (v2 §9): no study-flavoured copy, so the same count reads as plain "locked in".
+  study: GYM_SPARK
+    ? {
+        now: (n, c) => (c ? `${n} locked in at ${c} right now` : `${n} locked in right now`),
+        today: (n, c) => (c ? `${n} locked in at ${c} today` : `${n} locked in today`),
+        week: (n, c) => (c ? `${n} locked in at ${c} this week` : `${n} locked in this week`),
+      }
+    : {
+        now: (n, c) => (c ? `${n} studying at ${c} right now` : `${n} studying right now`),
+        today: (n, c) => (c ? `${n} studied at ${c} today` : `${n} studied today`),
+        week: (n, c) => (c ? `${n} studied at ${c} this week` : `${n} studied this week`),
+      },
   fitness: {
     now: (n, c) => (c ? `${n} on Fitness at ${c} right now` : `${n} locked in on Fitness right now`),
     today: (n, c) => (c ? `${n} on Fitness at ${c} today` : `${n} locked in on Fitness today`),

@@ -9,6 +9,7 @@ import { challengeTitle } from '@/lib/challenge-metric';
 import { fetchCircleActiveChallenges, joinCampfireChallenge } from '@/lib/api/social-challenges';
 import { getErrorMessage } from '@/lib/errors';
 import type { CircleActiveChallenge } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // WHAT THIS FIXES (CODE_PROMPT_campfire_history_join.md §1.2, migration 0163).
 //
@@ -84,7 +85,7 @@ export function ActiveChallengeStrip({
           style={styles.main}
           onPress={() => router.push(`/challenge-info/${top.id}`)}
           accessibilityRole="button"
-          accessibilityLabel={`Open the campfire challenge ${title}`}>
+          accessibilityLabel={`Open the ${GYM_SPARK ? 'room' : 'campfire'} challenge ${title}`}>
           <View style={styles.badge}>
             <NavGlyph name="flame" size={13} color={Colors.navEmber2} />
           </View>

@@ -6,6 +6,7 @@ import { Icon } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
 import { MENTION_ALL } from '@/lib/mentions';
 import type { CampfireMember } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // THE @-AUTOCOMPLETE (mock 101 frame 5).
 //
@@ -66,7 +67,7 @@ export function MentionAutocomplete({
             </View>
             <View style={styles.who}>
               <Text style={styles.name}>@all</Text>
-              <Text style={styles.sub}>Notify everyone in the campfire</Text>
+              <Text style={styles.sub}>{GYM_SPARK ? 'Notify everyone in the room' : 'Notify everyone in the campfire'}</Text>
             </View>
           </Pressable>
         )}

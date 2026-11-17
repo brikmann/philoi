@@ -144,7 +144,7 @@ export function CampfireOptionsSheet({
       onClose();
       router.replace('/');
     } catch (e) {
-      setError(getErrorMessage(e, `Could not ${isOwner ? 'delete' : 'leave'} this campfire.`));
+      setError(getErrorMessage(e, `Could not ${isOwner ? 'delete' : 'leave'} this ${GYM_SPARK ? 'room' : 'campfire'}.`));
       setConfirmOpen(false);
     } finally {
       setConfirmBusy(false);
@@ -153,7 +153,7 @@ export function CampfireOptionsSheet({
 
   const rows: RowConfig[] = [
     ...(isAdmin
-      ? [{ key: 'edit', icon: 'sliders' as const, label: 'Campfire settings', onPress: () => go(`/group/${groupId}/edit`) }]
+      ? [{ key: 'edit', icon: 'sliders' as const, label: GYM_SPARK ? 'Room settings' : 'Campfire settings', onPress: () => go(`/group/${groupId}/edit`) }]
       : []),
     // R2 — "Set banner" IS DELIBERATELY GONE FROM HERE.
     //
@@ -266,7 +266,7 @@ export function CampfireOptionsSheet({
               <View style={[styles.rowIcon, styles.rowIconWarn]}>
                 <PhiloiIcon name="flag" size={18} color={Colors.gold} />
               </View>
-              <Text style={styles.rowLabel}>Report this campfire</Text>
+              <Text style={styles.rowLabel}>{GYM_SPARK ? 'Report' : 'Report this campfire'}</Text>
               <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
             </Pressable>
 
@@ -281,7 +281,7 @@ export function CampfireOptionsSheet({
                   <PhiloiIcon name="leave" size={18} color={Colors.danger} />
                 </View>
                 <Text style={[styles.rowLabel, styles.rowLabelDanger]}>
-                  {isOwner ? 'Delete campfire' : 'Leave campfire'}
+                  {isOwner ? (GYM_SPARK ? 'Delete room' : 'Delete campfire') : GYM_SPARK ? 'Leave room' : 'Leave campfire'}
                 </Text>
               </Pressable>
             )}
@@ -294,11 +294,13 @@ export function CampfireOptionsSheet({
             Nested, it presents from the sheet's own controller. */}
         <ConfirmDialog
           visible={confirmOpen}
-          title={isOwner ? 'Delete campfire' : 'Leave campfire'}
+          title={isOwner ? (GYM_SPARK ? 'Delete room' : 'Delete campfire') : GYM_SPARK ? 'Leave room' : 'Leave campfire'}
           body={
             isOwner
-              ? 'This permanently deletes this campfire for everyone. This cannot be undone.'
-              : "You'll stop seeing this campfire's feed and leaderboard."
+              ? `This permanently deletes this ${GYM_SPARK ? 'room' : 'campfire'} for everyone. This cannot be undone.`
+              : GYM_SPARK
+                ? "You'll stop seeing this room's chat and leaderboard."
+                : "You'll stop seeing this campfire's feed and leaderboard."
           }
           confirmLabel={isOwner ? 'Delete' : 'Leave'}
           destructive={isOwner}
@@ -311,7 +313,7 @@ export function CampfireOptionsSheet({
       <CampfireBannerPicker
         visible={bannerOpen}
         onClose={() => setBannerOpen(false)}
-        campfireName={group?.name ?? 'Your campfire'}
+        campfireName={group?.name ?? (GYM_SPARK ? 'Your room' : 'Your campfire')}
         groupId={groupId}
         currentBannerId={group?.banner_item_id ?? null}
         onChanged={onGroupChanged}

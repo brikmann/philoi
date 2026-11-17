@@ -12,6 +12,7 @@ import { fetchMyFeedChannels } from '@/lib/api/feed-channels';
 import { freshTopic } from '@/lib/realtime-topic';
 import { supabase } from '@/lib/supabase';
 import type { AgoraAttachKind } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // PERSISTENT CHAT, CLIENT HALF (migration 0284 — "a chat carries what a post carries").
 //
@@ -442,7 +443,7 @@ export async function fetchMyChats(userId: string): Promise<SocialChat[] | null>
       return {
         kind: 'campfire',
         id: r.out_room_id,
-        name: r.out_name ?? 'Campfire',
+        name: r.out_name ?? (GYM_SPARK ? 'Room' : 'Campfire'),
         emoji: channel?.emoji ?? '',
         lastAt: r.out_last_at,
         lastLine: roomLine,

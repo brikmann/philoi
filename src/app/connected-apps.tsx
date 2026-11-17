@@ -16,6 +16,7 @@ import { useStravaConnection } from '@/hooks/use-strava-connection';
 import { getErrorMessage } from '@/lib/errors';
 import { getPlatformFitnessSource, isDeviceFitnessSupported } from '@/lib/fitness-sync';
 import { isStravaSupported } from '@/lib/strava';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // Official Strava brand assets (developers.strava.com/guidelines — never redraw these).
 const STRAVA_CONNECT_BUTTON = require('../../assets/strava/connect-button/btn_strava_connect_with_orange_x2.png');
@@ -248,7 +249,9 @@ function GoogleCalendarRow() {
               ? accountEmail
                 ? `Connected · ${accountEmail}`
                 : 'Connected'
-              : 'Deadlines · exams · free time'}
+              : GYM_SPARK
+                ? 'Sessions · schedule · free time'
+                : 'Deadlines · exams · free time'}
           </Text>
         </View>
         {busy || loading ? (
@@ -324,7 +327,7 @@ export default function ConnectedAppsScreen() {
           <Text style={styles.privacyText}>
             {/* "Steps and distance" alone would under-state it: a Sleep goal reads sleep too. */}
             Philoi never writes to your health data — it only reads steps, sleep and distance to verify a challenge.
-            Your campfire sees progress, never raw activity.
+            {GYM_SPARK ? 'Your gym sees progress, never raw activity.' : 'Your campfire sees progress, never raw activity.'}
           </Text>
         </View>
 

@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { FlameLogo } from '@/components/ui/flame-logo';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // THE CALENDAR CONSENT (GCAL_INTEGRATION_SPEC.md "Privacy — calendar is sensitive").
 //
@@ -28,13 +29,14 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 // row. If any of that ever stops being true, this text has to change with it — do not leave a
 // promise on screen that the server no longer keeps.
 
-const LEAD =
-  'So Philoi can see your deadlines and free time and coach you around them — the exam on Friday, the two hours you’re free this afternoon.';
+const LEAD = GYM_SPARK
+  ? 'So Philoi can see your schedule and free time and coach you around them — the packed Friday, the two hours you’re free this afternoon.'
+  : 'So Philoi can see your deadlines and free time and coach you around them — the exam on Friday, the two hours you’re free this afternoon.';
 
 const PROMISES = [
   'Read-only. Philoi can never add, move or delete anything.',
   'Only the next few weeks, read when your coach writes to you — never stored.',
-  'Never shared with anyone. Not your campfire, not other members.',
+  GYM_SPARK ? 'Never shared with anyone. Not your gym, not other members.' : 'Never shared with anyone. Not your campfire, not other members.',
 ];
 
 const FOOTER = 'You can disconnect any time, and that revokes Philoi’s access at Google too.';

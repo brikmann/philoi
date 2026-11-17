@@ -24,6 +24,7 @@ import {
 } from '@/lib/api/friend-requests';
 import { usePresence } from '@/hooks/use-presence';
 import { getErrorMessage } from '@/lib/errors';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // "Add friends" (design-mocks/34 + 35 — the same screen in two states, per their identical
 // header title: 34 is the idle default with a static search prompt + pending requests + sent;
@@ -267,7 +268,7 @@ export default function AddFriendScreen() {
 
             {suggested.length > 0 && (
               <>
-                <SpaceSection>Suggested · from your campfires</SpaceSection>
+                <SpaceSection>{GYM_SPARK ? 'Suggested · from your gym' : 'Suggested · from your campfires'}</SpaceSection>
                 {suggested.map((s) => (
                   <View key={s.user_id} style={styles.row}>
                     <Avatar label={s.display_name} size={38} />

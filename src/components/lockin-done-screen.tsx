@@ -10,7 +10,7 @@ import { NavGlyph } from '@/components/ui/nav-glyph';
 import { SpaceButton } from '@/components/ui/space-kit';
 import { TextInput } from '@/components/ui/text-input';
 import { UiGlyph } from '@/components/ui/ui-glyph';
-import { GYM_VIDEO_CLIPS_ENABLED } from '@/constants/feature-flags';
+import { GYM_VIDEO_CLIPS_ENABLED, GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useMyGroups } from '@/hooks/use-my-groups';
 import { postSessionToAgora } from '@/lib/api/agora';
@@ -260,7 +260,7 @@ export function LockInDoneScreen({
         ? 'Everyone'
         : audience.kind === 'forest'
           ? (audienceForest?.name ?? 'Forest')
-          : (audienceCampfire?.name ?? 'Campfire');
+          : (audienceCampfire?.name ?? (GYM_SPARK ? 'Room' : 'Campfire'));
   const audienceIcon: IconName = audience.kind;
 
   // The note belongs to the lock-in, not to the act of posting — so it's saved on BOTH exits. A

@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { EquippedFlameSvg } from '@/components/flame-icon';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // CINDY ON THE PRE-CHALLENGE SCREEN — mock 143's second path, "Ask Cindy".
 //
@@ -114,7 +115,7 @@ export function cindyChallengeSeed(input: {
   // both re-read the caller's role from group_members at write time (0162) and refuse whatever the
   // sentence claimed — this only decides which flow somebody is INVITED into.
   if (input.shape === 'collective' && input.canHostForCampfire && input.circleName) {
-    return `Set a challenge for ${input.circleName} — everyone in the campfire. I want `;
+    return `Set a challenge for ${input.circleName} — everyone in the ${GYM_SPARK ? 'room' : 'campfire'}. I want `;
   }
   return input.shape === 'placement'
     ? `Help me set up a ranked race${where}. I want `

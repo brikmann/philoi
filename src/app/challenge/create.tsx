@@ -35,6 +35,7 @@ import {
 } from '@/lib/challenge-qa';
 import { markCoachMarkSeen } from '@/lib/coach-marks';
 import type { ChallengePeriod, ChallengeType, DifficultyTier } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 // NEW CHALLENGE — a Q&A with Cindy (mock 265), ending on her verdict (mock 263).
@@ -118,7 +119,7 @@ const SPECIFICS_CHIPS: Record<QaWhat, string[]> = {
 const WHO_CHIPS: { label: string; who: QaWho }[] = [
   { label: 'Just me', who: 'solo' },
   { label: 'Friends', who: 'friend' },
-  { label: 'A campfire', who: 'campfire' },
+  { label: GYM_SPARK ? 'A room' : 'A campfire', who: 'campfire' },
 ];
 
 const WHEN_SOLO_CHIPS: { label: string; period: ChallengePeriod }[] = [
@@ -150,14 +151,14 @@ function questionFor(step: QaStep, a: QaAnswers, ctx: { friendCount: number; gro
   switch (step) {
     case 'what':
       return a.opponent
-        ? `Let's set one up against ${a.opponent.name}. What are we challenging — study, gym, a run, or something of your own?`
-        : "Let's set one up. What are we challenging — study, gym, a run, or something of your own?";
+        ? `Let's set one up against ${a.opponent.name}. What are we challenging — ${GYM_SPARK ? 'gym, a run, a session' : 'study, gym, a run'}, or something of your own?`
+        : `Let's set one up. What are we challenging — ${GYM_SPARK ? 'gym, a run, a session' : 'study, gym, a run'}, or something of your own?`;
     case 'custom_name':
       return "Love it. What is it? Name it the way you'd log it — “pushups”, “guitar”, “cold plunges”.";
     case 'specifics':
       if (a.campfireKind === 'collective') {
         return a.what === 'run' || a.what === 'ride'
-          ? `What's the total ${a.circle?.name ?? 'the campfire'} is pooling toward — and by when?`
+          ? `What's the total ${a.circle?.name ?? (GYM_SPARK ? 'the room' : 'the campfire')} is pooling toward — and by when?`
           : 'What total are you all pooling toward, and by when?';
       }
       return a.what === 'run' || a.what === 'ride'
@@ -173,19 +174,21 @@ function questionFor(step: QaStep, a: QaAnswers, ctx: { friendCount: number; gro
         : 'Solo, or are you racing people? If it’s a race, who’s in?';
     case 'friend':
       return ctx.friendCount === 0
-        ? "You haven't added any friends yet — add some from People, or make it just you or a campfire."
+        ? `You haven't added any friends yet — add some from People, or make it just you or a ${GYM_SPARK ? 'room' : 'campfire'}.`
         : 'Who are you taking on? It’s one-on-one.';
     case 'campfire':
       return ctx.groupCount === 0
-        ? "You're not in a campfire yet. Join or start one first — or make it just you, or a friend."
-        : 'Which campfire?';
+        ? `You're not in a ${GYM_SPARK ? 'room' : 'campfire'} yet. Join or start one first — or make it just you, or a friend.`
+        : GYM_SPARK
+          ? 'Which room?'
+          : 'Which campfire?';
     case 'campfire_kind':
-      return `How does ${a.circle?.name ?? 'the campfire'} play it — everyone hits the same bar, a race for the most, or one total you all pool toward?`;
+      return `How does ${a.circle?.name ?? (GYM_SPARK ? 'the room' : 'the campfire')} play it — everyone hits the same bar, a race for the most, or one total you all pool toward?`;
     case 'when':
       return a.who === 'solo' ? 'Every day, every week, or one target you hit once?' : 'How long does it run?';
     case 'mismatch':
       return a.what === 'volume'
-        ? 'Total weight lifted is a race — it needs someone to race. Friends, or a campfire?'
+        ? `Total weight lifted is a race — it needs someone to race. Friends, or a ${GYM_SPARK ? 'room' : 'campfire'}?`
         : `${WHAT_NAME[a.what ?? 'custom']} can only be your own goal for now — no race reads it yet.`;
     case 'handoff':
       return 'Grades need the course and the pass mark, and that’s a real conversation — let’s do it in my chat. I’ll take it from here.';
@@ -224,8 +227,8 @@ function repromptFor(step: QaStep, a: QaAnswers, attempt: number): string {
     case 'friend':
     case 'campfire':
       return pick([
-        'Tap one above, or tell me who — a friend’s name or a campfire’s.',
-        'I couldn’t match that to a friend or campfire — tap one of them above.',
+        `Tap one above, or tell me who — a friend’s name or a ${GYM_SPARK ? 'room' : 'campfire'}’s.`,
+        `I couldn’t match that to a friend or ${GYM_SPARK ? 'room' : 'campfire'} — tap one of them above.`,
       ]);
     case 'campfire_kind':
       return pick([
@@ -346,7 +349,7 @@ export default function CreateChallengeScreen() {
   /** A campfire answer is only taken from someone who can host there; anyone else hears why. */
   function circleAnswer(id: string): { ok: true; circle: NonNullable<QaAnswers['circle']> } | { ok: false; why: string } {
     const g = groups.find((x) => x.id === id);
-    if (!g) return { ok: false, why: "I can't find that campfire." };
+    if (!g) return { ok: false, why: GYM_SPARK ? "I can't find that room." : "I can't find that campfire." };
     const isAdmin = g.role === 'owner' || g.role === 'admin';
     // 🔒 A COURTESY, NOT THE ENFORCEMENT. create_placement_challenge, create_group_challenge and
     // host_campfire_challenge all re-read the role from group_members at write time (0126/0162).

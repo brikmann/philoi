@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import type { NotificationPrefs } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // The Settings → Notifications sub-screen (PHILOI_UI_SPEC.md §19). Each category maps 1:1 to a
 // notification `type` handled server-side in notify_push() — muting a category here filters the
@@ -119,9 +120,9 @@ export const NOTIFICATION_CATEGORIES: {
   },
   {
     key: 'cat_campfires',
-    label: 'Campfires',
-    description: 'Joins, campfire challenges, messages and cold campfires',
-    covers: ['Joins and join requests', 'Campfire challenges starting and settling'],
+    label: GYM_SPARK ? 'Gym & rooms' : 'Campfires',
+    description: GYM_SPARK ? 'Joins, room challenges and messages' : 'Joins, campfire challenges, messages and cold campfires',
+    covers: ['Joins and join requests', GYM_SPARK ? 'Room challenges starting and settling' : 'Campfire challenges starting and settling'],
   },
   {
     key: 'cat_streak_reminders',
@@ -161,10 +162,13 @@ export type NotificationPrefItem = {
 
 // Copy for the six legacy per-type keys, kept in one map so a label lives in exactly one place.
 const PREF_ITEM_COPY: Record<NotificationPrefKey, { label: string; description: string }> = {
-  campfire_lockins: { label: 'Someone locks in', description: 'A campfire member starts a session' },
+  campfire_lockins: { label: 'Someone locks in', description: GYM_SPARK ? 'Someone in your room starts a session' : 'A campfire member starts a session' },
   reactions: { label: 'Reactions', description: 'Someone reacts to your lock-in' },
-  messages: { label: 'Messages and mentions', description: 'New messages in your campfires' },
-  campfire_cold: { label: 'Campfire going cold', description: 'A quiet campfire needs a spark' },
+  messages: { label: 'Messages and mentions', description: GYM_SPARK ? 'New messages in your rooms' : 'New messages in your campfires' },
+  campfire_cold: {
+    label: GYM_SPARK ? 'Room going quiet' : 'Campfire going cold',
+    description: GYM_SPARK ? 'A quiet room needs a spark' : 'A quiet campfire needs a spark',
+  },
   streak_risk: { label: 'Streak about to lapse', description: 'A nightly nudge before your streak breaks' },
   challenges: { label: 'Invites and results', description: 'Someone challenges you, or a challenge settles' },
 };
@@ -251,8 +255,8 @@ export const CATEGORY_TYPE_KEYS: Record<NotificationCategoryKey, NotificationTyp
   cat_campfires: [
     {
       key: 'type_campfire_post',
-      label: 'Someone posts in your campfire',
-      description: 'At most one a person, each campfire, every six hours',
+      label: GYM_SPARK ? 'Someone posts in your room' : 'Someone posts in your campfire',
+      description: GYM_SPARK ? 'At most one a person, each room, every six hours' : 'At most one a person, each campfire, every six hours',
     },
     {
       key: 'type_forest_post',

@@ -21,6 +21,7 @@ import { formatRelativeTime } from '@/lib/format';
 import { getStepLadderLastSyncedAt } from '@/lib/step-ladder-sync';
 import { getStravaLastSyncedAt, isStravaSupported } from '@/lib/strava';
 import { WHOOP_ALL_METRIC_SCOPES } from '@/lib/whoop';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 const STRAVA_POWERED_BY = require('../../assets/strava/powered-by/api_logo_pwrdBy_strava_horiz_orange.png');
 
@@ -167,7 +168,7 @@ export default function FitnessTrackersScreen() {
         <View style={styles.privacy}>
           <UiGlyph name="lock" size={13} color={Colors.green} />
           <Text style={styles.privacyText}>
-            Philoi never writes to your health data — it only reads activity to count it. Your campfire sees progress, never raw
+            Philoi never writes to your health data — it only reads activity to count it. {GYM_SPARK ? 'Your gym' : 'Your campfire'} sees progress, never raw
             activity.
           </Text>
         </View>

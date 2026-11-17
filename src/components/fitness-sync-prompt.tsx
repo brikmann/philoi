@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { WHOOP_ENABLED } from '@/constants/feature-flags';
+import { WHOOP_ENABLED, GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useFitnessConnection } from '@/hooks/use-fitness-connection';
 import {
@@ -199,7 +199,7 @@ export function FitnessSyncPrompt({
         <View style={styles.privacy}>
           <Ionicons name="lock-closed" size={13} color={Colors.green} />
           <Text style={styles.privacyText}>
-            We only read what this challenge needs — your campfire sees your progress, never your raw activity data.
+            We only read what this challenge needs — your {GYM_SPARK ? 'gym' : 'campfire'} sees your progress, never your raw activity data.
           </Text>
         </View>
       </SafeAreaView>
