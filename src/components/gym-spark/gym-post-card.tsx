@@ -6,7 +6,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { feedCardImage } from '@/components/home/home-feed';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { AgoraVideoTile } from '@/components/agora/agora-video-tile';
 import { attachmentView, itemAttachments } from '@/lib/agora-attachment';
+import { itemVideo } from '@/lib/api/agora-video';
 import { useAuth } from '@/lib/auth/auth-context';
 import { formatRelativeTime } from '@/lib/format';
 import type { AgoraItem } from '@/types/database';
@@ -90,6 +92,8 @@ function GymPostCardInner({ item, variant, forcePr = false, onMore, prAccessory 
 
   const feed = variant === 'feed';
   const photo = photoFailed ? null : feedCardImage(item);
+  const video = itemVideo(item);
+  const mine = item.user_id === session?.user.id;
   const isPr = forcePr || item.is_pr === true;
   const lockin = itemAttachments(item).find((a) => a.kind === 'lockin');
   const lockinView = lockin ? attachmentView(lockin.kind, lockin.snapshot) : null;
@@ -143,6 +147,13 @@ function GymPostCardInner({ item, variant, forcePr = false, onMore, prAccessory 
           transition={120}
           onError={() => setPhotoFailed(true)}
         />
+      ) : null}
+
+      {/* A clip (0279): poster + tap-to-play, signed per viewer. Someone else's carries the report flag. */}
+      {video ? (
+        <View style={feed ? styles.videoFeed : undefined}>
+          <AgoraVideoTile postId={item.id} video={video} onReport={mine ? undefined : () => onMore(item)} />
+        </View>
       ) : null}
 
       <View style={feed ? styles.footPadded : styles.foot}>
@@ -276,6 +287,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.twelve,
     borderRadius: 18,
     backgroundColor: Colors.spacePanel2,
+  },
+  videoFeed: {
+    paddingHorizontal: Spacing.three,
   },
   foot: {
     paddingTop: Spacing.twelve,
