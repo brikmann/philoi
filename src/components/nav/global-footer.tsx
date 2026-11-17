@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomBar, TAB_SLOTS, type TabKey } from '@/components/nav/bottom-bar';
+import { GYM_SPARK } from '@/constants/feature-flags';
+import { GYM_ROOM_ID } from '@/lib/api/gym-spark';
 import { useActiveSession } from '@/lib/active-session-context';
 import { useAuth } from '@/lib/auth/auth-context';
 
@@ -29,6 +31,11 @@ const TAB_PATHS: Record<string, TabKey> = {
   '/profile': 'profile',
   // Mock 331: the board has no slot of its own any more — Standings is reached from You, so You lights.
   '/leaderboards': 'profile',
+  // THE GYM SPARK's Board tab (mock 402). Off the flag the route is a redirect home, so it never lights.
+  // Chat is THE gym room's campfire chat (bottom-bar.tsx), so that one room lights Chat. The bar stays
+  // up on it — it is the way back to Feed — and the campfire composer sits above it like any screen.
+  // Lock In has no slot in spark: on /lockin nothing is lit.
+  ...(GYM_SPARK ? { '/board': 'board' as const, [`/group/${GYM_ROOM_ID}`]: 'chat' as const } : {}),
 };
 
 /** Path prefixes with no footer. Matched as `path === p || path.startsWith(p + '/')`. */
@@ -73,6 +80,9 @@ function isHidden(path: string): boolean {
   // group/[id]/edit, group/[id]/invite and inventory/[itemId] are modals.
   if (path.startsWith('/group/') && MODAL_SUFFIXES.some((s) => path.endsWith(s))) return true;
   if (path.startsWith('/inventory/')) return true;
+  // THE GYM SPARK: post detail (mock 403) pins its comment composer to the bottom edge, so — like a
+  // chat thread — it owns that edge. Only the detail/sub-routes; the /agora index keeps the bar.
+  if (GYM_SPARK && path.startsWith('/agora/')) return true;
   return false;
 }
 

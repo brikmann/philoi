@@ -4,17 +4,13 @@ import { forwardRef, useRef, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { fitFontSize } from '@/components/share-card-frame';
 import { FlameLogo, FlameWordmark } from '@/components/ui/flame-logo';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { formatLiftWeight } from '@/lib/api/reel-challenge';
-import {
-  canShareToInstagramStories,
-  captureSticker,
-  shareStickerSystem,
-  shareStickerToInstagram,
-} from '@/lib/story-sticker/share';
+import { canShareToInstagramStories, shareSticker } from '@/lib/story-sticker/share';
 
 // Philoi → Instagram for a verified lift (mock 324, frame 1): "New 1RM · 405 lb", "✓ verified on
 // Philoi", a way back. Same hand-off as the lock-in sticker (modules/philoi-story-share): a PNG on
@@ -29,25 +25,45 @@ import {
 
 export type LiftStoryStat = {
   exercise: string;
-  weight: number;
-  reps: number;
+  /**
+   * Null when the post carries no structured lift — a Gym Spark post the author flagged as a PR
+   * with only a photo and a caption. The card then leads with the caption instead of a number, and
+   * never invents one.
+   */
+  weight: number | null;
+  reps: number | null;
   isPr: boolean;
   handle: string | null;
+  /** The post's caption — the headline's stand-in when there is no weight to print. */
+  caption?: string | null;
+  /**
+   * Whether the numbers came off a server-verified set (a 'pr' attachment or a logged session).
+   * Defaults true for the lift-import path, which always posts a verified set. False hides the
+   * "verified on Philoi" pill — a caption is the author's word, not a verified lift.
+   */
+  verified?: boolean;
 };
 
 const CARD_WIDTH = 360;
 /** The green the reel's verified badge and the composer's audience promise use (#39D98A). */
 const VERIFIED_GREEN = '#39D98A';
+/** A caption past this is a paragraph, not a headline — clipped with an ellipsis. */
+const CAPTION_LINES = 4;
 
-/** "New 1RM · 405 lb" / "New PR · 315 lb × 3" / "405 lb × 3". */
+/** "New 1RM · 405 lb" / "New PR · 315 lb × 3" / "405 lb × 3" / "New PR" (caption-only). */
 function headline(stat: LiftStoryStat): string {
-  const set = `${formatLiftWeight(stat.weight)}${stat.reps > 1 ? ` × ${stat.reps}` : ''}`;
+  if (stat.weight == null) return stat.isPr ? 'New PR' : 'New set';
+  const reps = stat.reps ?? 1;
+  const set = `${formatLiftWeight(stat.weight)}${reps > 1 ? ` × ${reps}` : ''}`;
   if (!stat.isPr) return set;
-  return `${stat.reps === 1 ? 'New 1RM' : 'New PR'} · ${set}`;
+  return `${reps === 1 ? 'New 1RM' : 'New PR'} · ${set}`;
 }
 
 export const LiftStoryCard = forwardRef<View, { stat: LiftStoryStat; onLayout?: (e: LayoutChangeEvent) => void }>(
   function LiftStoryCard({ stat, onLayout }, ref) {
+    const caption = stat.weight == null ? stat.caption?.trim() || null : null;
+    const verified = stat.weight != null && stat.verified !== false;
+    const meta = [stat.handle ? `@${stat.handle}` : null, stat.exercise || null].filter(Boolean).join(' · ');
     return (
       <View ref={ref} collapsable={false} style={styles.card} onLayout={onLayout}>
         <LinearGradient colors={['#2A1A4A', '#120D22']} style={StyleSheet.absoluteFill} />
@@ -56,14 +72,20 @@ export const LiftStoryCard = forwardRef<View, { stat: LiftStoryStat; onLayout?: 
           <FlameLogo size={64} />
         </View>
         <Text style={styles.stat}>{headline(stat)}</Text>
-        <Text style={styles.meta}>
-          {stat.handle ? `@${stat.handle} · ` : ''}
-          {stat.exercise}
-        </Text>
-        <View style={styles.verified}>
-          <Ionicons name="checkmark" size={12} color={VERIFIED_GREEN} />
-          <Text style={styles.verifiedText}>verified on Philoi</Text>
-        </View>
+        {caption ? (
+          <Text
+            style={[styles.caption, { fontSize: fitFontSize(caption, 17, 12, 60) }]}
+            numberOfLines={CAPTION_LINES}>
+            “{caption}”
+          </Text>
+        ) : null}
+        {meta ? <Text style={styles.meta}>{meta}</Text> : null}
+        {verified ? (
+          <View style={styles.verified}>
+            <Ionicons name="checkmark" size={12} color={VERIFIED_GREEN} />
+            <Text style={styles.verifiedText}>verified on Philoi</Text>
+          </View>
+        ) : null}
         <Text style={styles.back}>think you can match it? · philoi.app</Text>
       </View>
     );
@@ -83,12 +105,11 @@ export function LiftStorySheet({ visible, stat, onClose }: Props) {
     if (busy || !stat) return;
     setBusy(true);
     try {
-      const uri = await captureSticker(ref, size);
-      if (!uri) return;
-      let done = false;
-      if (igReady) done = await shareStickerToInstagram(uri);
-      if (!done) await shareStickerSystem(uri);
-      void track('story_sticker_shared', { target: done ? 'instagram' : 'system', backdrop: 'lift', is_pr: stat.isPr });
+      // Settles + re-measures before the capture (story-sticker/settle.ts), then Instagram or the
+      // system sheet — the one path every sticker shares through.
+      const target = await shareSticker(ref, size);
+      if (!target) return;
+      void track('story_sticker_shared', { target, backdrop: 'lift', is_pr: stat.isPr });
     } catch (e) {
       console.warn('[lift-story] share failed:', e);
     } finally {
@@ -169,6 +190,7 @@ const styles = StyleSheet.create({
   },
   stat: { fontFamily: Fonts.black, fontSize: 28, color: Colors.ink, textAlign: 'center' },
   meta: { fontFamily: Fonts.body, fontSize: 12, color: Colors.muted, textAlign: 'center' },
+  caption: { fontFamily: Fonts.bodySemiBold, color: Colors.ink, textAlign: 'center', lineHeight: 22 },
   verified: {
     flexDirection: 'row',
     alignItems: 'center',

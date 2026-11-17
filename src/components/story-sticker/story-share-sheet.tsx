@@ -8,6 +8,7 @@ import Svg, { Defs, Pattern, Rect } from 'react-native-svg';
 import { StorySticker, STICKER_WIDTH, type StickerSkin } from '@/components/story-sticker/story-sticker';
 import { IconText, type IconName } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { MotionStill } from '@/hooks/use-motion-active';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { track } from '@/lib/analytics';
 import { getItem, isDefaultItem } from '@/lib/economy/catalog';
@@ -226,17 +227,21 @@ export function StoryShareSheet({ visible, session, onClose }: Props) {
           </View>
         </View>
 
-        {/* The export instance — fixed 360pt layout, art held still, never visible. */}
+        {/* The export instance — fixed 360pt layout, art held still, never visible. `motion="still"`
+            only freezes the card art; MotionStill freezes everything else that loops (the rank
+            badge's Primordial aura), so the PNG is the same pixels on every capture. */}
         {model ? (
           <View style={styles.offscreen} pointerEvents="none">
-            <StorySticker
-              ref={exportRef}
-              model={model}
-              prefs={prefs}
-              skin={skin}
-              motion="still"
-              onLayout={(e) => setExportSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
-            />
+            <MotionStill>
+              <StorySticker
+                ref={exportRef}
+                model={model}
+                prefs={prefs}
+                skin={skin}
+                motion="still"
+                onLayout={(e) => setExportSize({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
+              />
+            </MotionStill>
           </View>
         ) : null}
       </View>

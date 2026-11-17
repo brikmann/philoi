@@ -1,6 +1,8 @@
 import type { RefObject } from 'react';
 import type { View } from 'react-native';
 
+import { waitForSettledFrame } from '@/lib/story-sticker/settle';
+
 // Generic off-screen-card capture + native share sheet hand-off — used by both the fire-complete
 // story card (fire-share-card.ts) and the rank-up share card (rank-up-share-card.tsx). Both
 // native modules are lazily require()'d, same reasoning as sound.ts's expo-audio handling: they
@@ -11,6 +13,9 @@ import type { View } from 'react-native';
 export async function shareCardImage(cardRef: RefObject<View | null>, dialogTitle: string): Promise<void> {
   if (!cardRef.current) return;
   try {
+    // A settled frame, never the one the Share tap is still committing — see story-sticker/settle.ts.
+    await waitForSettledFrame();
+    if (!cardRef.current) return;
     const { captureRef } = require('react-native-view-shot') as typeof import('react-native-view-shot');
     const Sharing = require('expo-sharing') as typeof import('expo-sharing');
     const uri = await captureRef(cardRef, { format: 'png', quality: 1 });

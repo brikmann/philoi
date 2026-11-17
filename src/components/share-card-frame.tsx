@@ -4,6 +4,7 @@ import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { Colors, Fonts } from '@/constants/theme';
 import { FlameLogo } from '@/components/ui/flame-logo';
+import { MotionStill } from '@/hooks/use-motion-active';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { RankBadge, RANK_BADGE_ASPECT } from '@/components/rank-badge';
 import type { RankTierName } from '@/types/database';
@@ -222,47 +223,55 @@ export const ShareCardFrame = forwardRef<View, ShareCardFrameProps>(function Sha
 
   return (
     <View ref={ref} collapsable={false} style={styles.card}>
-      <Svg width={SHARE_CARD_WIDTH} height={SHARE_CARD_HEIGHT} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <RadialGradient id={bg} cx="50%" cy={g.cy} rx="120%" ry="58%">
-            <Stop offset="0" stopColor={g.stops[0]} />
-            <Stop offset="0.58" stopColor={g.stops[1]} />
-            <Stop offset="1" stopColor={g.stops[2]} />
-          </RadialGradient>
-        </Defs>
-        <Rect x={0} y={0} width={SHARE_CARD_WIDTH} height={SHARE_CARD_HEIGHT} fill={`url(#${bg})`} />
-      </Svg>
+      {/* 🐛 THE SETTLE FIX (Gym Spark §6). The fan above was made static for exactly this reason,
+          but the rest of the card was not: the footer RankBadge (Primordial aura), the streak
+          card's PersonalFlame and any item art run Reanimated loops gated on useMotionActive, and
+          every capture caught a random phase of them. Inside MotionStill those loops never start,
+          so every card is photographed in its resting pose. The other half — waiting for a painted
+          frame before captureRef — lives in share-card.ts / story-sticker/settle.ts. */}
+      <MotionStill>
+        <Svg width={SHARE_CARD_WIDTH} height={SHARE_CARD_HEIGHT} style={StyleSheet.absoluteFill}>
+          <Defs>
+            <RadialGradient id={bg} cx="50%" cy={g.cy} rx="120%" ry="58%">
+              <Stop offset="0" stopColor={g.stops[0]} />
+              <Stop offset="0.58" stopColor={g.stops[1]} />
+              <Stop offset="1" stopColor={g.stops[2]} />
+            </RadialGradient>
+          </Defs>
+          <Rect x={0} y={0} width={SHARE_CARD_WIDTH} height={SHARE_CARD_HEIGHT} fill={`url(#${bg})`} />
+        </Svg>
 
-      {/* Behind the hero and above the ground, but under everything that carries information.
-          0.30 per the mock — the flex has to keep supremacy, and a fan bright enough to notice on
-          its own is a fan competing with the number it is behind. */}
-      {rays ? (
-        <ShareCardRays
-          tint={rayTint ?? kickColor}
-          rampOuter={rayRamp?.outer}
-          rampCore={rayRamp?.core}
-          size={SHARE_CARD_WIDTH * 1.9}
-          centerY={rayCenterY}
-          opacity={rayOpacity}
-        />
-      ) : null}
+        {/* Behind the hero and above the ground, but under everything that carries information.
+            0.30 per the mock — the flex has to keep supremacy, and a fan bright enough to notice on
+            its own is a fan competing with the number it is behind. */}
+        {rays ? (
+          <ShareCardRays
+            tint={rayTint ?? kickColor}
+            rampOuter={rayRamp?.outer}
+            rampCore={rayRamp?.core}
+            size={SHARE_CARD_WIDTH * 1.9}
+            centerY={rayCenterY}
+            opacity={rayOpacity}
+          />
+        ) : null}
 
-      {aura}
+        {aura}
 
-      {kickIcon ? (
-        <View style={styles.kickRow}>
-          <Icon name={kickIcon} size={14} color={kickColor} />
+        {kickIcon ? (
+          <View style={styles.kickRow}>
+            <Icon name={kickIcon} size={14} color={kickColor} />
+            <Text style={[styles.kick, { color: kickColor }]} numberOfLines={1}>
+              {kick}
+            </Text>
+          </View>
+        ) : (
           <Text style={[styles.kick, { color: kickColor }]} numberOfLines={1}>
             {kick}
           </Text>
-        </View>
-      ) : (
-        <Text style={[styles.kick, { color: kickColor }]} numberOfLines={1}>
-          {kick}
-        </Text>
-      )}
-      <View style={styles.hero}>{children}</View>
-      <ShareCardFooter handle={handle} tier={tier} division={division} />
+        )}
+        <View style={styles.hero}>{children}</View>
+        <ShareCardFooter handle={handle} tier={tier} division={division} />
+      </MotionStill>
     </View>
   );
 });

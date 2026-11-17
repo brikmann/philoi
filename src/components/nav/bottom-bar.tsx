@@ -2,7 +2,9 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts } from '@/constants/theme';
+import { GYM_ROOM_ID } from '@/lib/api/gym-spark';
 
 // THE BOTTOM BAR, drawn (ShareSpot, mock 346): Home · Search · ➕Post · Lock In · You.
 //
@@ -20,16 +22,34 @@ import { Colors, Fonts } from '@/constants/theme';
 
 // `social` keeps its key and route: campfire "posts" buttons and installed builds deep-link /social.
 // `chat` stays in the union — (tabs)/chat still exists and still lights a slot if one is ever drawn.
-export type TabKey = 'index' | 'social' | 'lockin' | 'chat' | 'profile';
+// `board` is THE GYM SPARK's leaderboard tab ((tabs)/board) — only ever drawn when GYM_SPARK is on.
+export type TabKey = 'index' | 'social' | 'lockin' | 'chat' | 'profile' | 'board';
 export type SlotKey = TabKey | 'post';
 
-export const TAB_SLOTS: { key: SlotKey; href: string; label: string; glyph: NavGlyphName; center?: boolean }[] = [
+type Slot = { key: SlotKey; href: string; label: string; glyph: NavGlyphName; center?: boolean };
+
+const CLASSIC_SLOTS: Slot[] = [
   { key: 'index', href: '/', label: 'Home', glyph: 'home' },
   { key: 'social', href: '/social', label: 'Search', glyph: 'search' },
   { key: 'post', href: '/agora/compose', label: 'Post', glyph: 'plus', center: true },
   { key: 'lockin', href: '/lockin', label: 'Lock In', glyph: 'pencil' },
   { key: 'profile', href: '/profile', label: 'You', glyph: 'person' },
 ];
+
+// THE GYM SPARK (CODE_PROMPT_gym_spark.md §5, mocks 400/402): Feed · Board · Chat · You. Four flat
+// tabs, no raised center — the Feed carries its own + FAB, so a Post slot would be a second copy of it.
+// Feed is the `index` route (home). Chat is not the (tabs)/chat hub: it opens THE gym room's campfire
+// chat (/group/GYM_ROOM_ID — the pre-0297 campfire screen, which works on today's prod schema) straight
+// away. Lock In left the bar for a "Start session" CTA on the Feed and the Board; /lockin still exists.
+// Search/Discover keep their routes, because installed builds and pushes deep-link to /social and /chat.
+const SPARK_SLOTS: Slot[] = [
+  { key: 'index', href: '/', label: 'Feed', glyph: 'home' },
+  { key: 'board', href: '/board', label: 'Board', glyph: 'board' },
+  { key: 'chat', href: `/group/${GYM_ROOM_ID}`, label: 'Chat', glyph: 'chat' },
+  { key: 'profile', href: '/profile', label: 'You', glyph: 'person' },
+];
+
+export const TAB_SLOTS: Slot[] = GYM_SPARK ? SPARK_SLOTS : CLASSIC_SLOTS;
 
 const HERO = 56;
 const RING = 5;

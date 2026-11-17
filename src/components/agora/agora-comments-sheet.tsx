@@ -15,6 +15,7 @@ import {
   View,
 } from 'react-native';
 
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { attachmentView, itemAttachments } from '@/lib/agora-attachment';
 import {
@@ -68,7 +69,7 @@ export function AgoraCommentsSheet({ item, onClose, onCountChange }: Props) {
         style={styles.sheetWrap}>
         <View style={styles.sheet}>
           <View style={styles.grabber} />
-          <Text style={styles.title}>Cheers &amp; comments</Text>
+          <Text style={styles.title}>{GYM_SPARK ? 'Comments' : 'Cheers & comments'}</Text>
           {item ? <Thread key={itemKey} item={item} onCountChange={onCountChange} /> : null}
         </View>
       </KeyboardAvoidingView>
@@ -222,10 +223,13 @@ function Thread({
             ? `${item.display_name} — ${attachment.title}`
             : (item.body ?? `${item.display_name}'s post`)}
         </Text>
-        <View style={styles.postMiniMeta}>
-          <Ionicons name="flame" size={11} color={Colors.amber} />
-          <Text style={styles.postMiniCount}>{item.cheers} cheers</Text>
-        </View>
+        {/* GYM SPARK · comment-only: no cheer tally anywhere. */}
+        {GYM_SPARK ? null : (
+          <View style={styles.postMiniMeta}>
+            <Ionicons name="flame" size={11} color={Colors.amber} />
+            <Text style={styles.postMiniCount}>{item.cheers} cheers</Text>
+          </View>
+        )}
       </View>
 
       {loading ? (

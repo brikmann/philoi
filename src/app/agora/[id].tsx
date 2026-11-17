@@ -6,9 +6,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AgoraCard } from '@/components/agora/agora-card';
 import { AgoraCommentsSheet } from '@/components/agora/agora-comments-sheet';
+import { GymPostScreen } from '@/components/gym-spark/gym-post-screen';
 import { ReportBlockSheet } from '@/components/report-block-sheet';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ScreenBackground } from '@/components/ui/screen-background';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
 import { usePublicLoadout } from '@/hooks/use-public-loadouts';
 import {
@@ -29,7 +31,17 @@ import type { AgoraItem } from '@/types/database';
 // Same card, same comments sheet as the feed. A notification that opened a differently-shaped
 // version of the thing you were told about is how a deep link stops feeling like the same app.
 
-export default function AgoraPostScreen() {
+// THE GYM SPARK: mock 403 — the post, the thread inline, a pinned "Add some chirp…" composer, no like.
+// `pr=1` comes from a PR card (get_agora_item doesn't carry is_pr). GYM_SPARK = false is the screen below.
+export default function AgoraPostRoute() {
+  const { id, type, pr } = useLocalSearchParams<{ id: string; type?: string; pr?: string }>();
+  if (GYM_SPARK) {
+    return <GymPostScreen key={`${type}:${id}`} id={id} type={type === 'milestone' ? 'milestone' : 'post'} pr={pr === '1'} />;
+  }
+  return <AgoraPostScreen />;
+}
+
+function AgoraPostScreen() {
   const router = useRouter();
   const { id, type, comments } = useLocalSearchParams<{
     id: string;

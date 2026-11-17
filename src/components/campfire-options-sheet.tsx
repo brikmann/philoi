@@ -16,6 +16,8 @@ import { useCampfireRole } from '@/hooks/use-campfire-role';
 import { useLeaderboard } from '@/hooks/use-leaderboard';
 import { fetchRoomWeek, type RoomWeek } from '@/lib/api/club';
 import { deleteGroup, fetchJoinRequests, leaveGroup, setChatMuted } from '@/lib/api/groups';
+import { GYM_SPARK } from '@/constants/feature-flags';
+import { GYM_ROOM_ID } from '@/lib/api/gym-spark';
 import { useAuth } from '@/lib/auth/auth-context';
 import { getErrorMessage } from '@/lib/errors';
 import type { CampfirePrivacy, Group } from '@/types/database';
@@ -268,17 +270,21 @@ export function CampfireOptionsSheet({
               <UiGlyph name="forward" size={14} color={Colors.spaceFaint} />
             </Pressable>
 
-            <Pressable
-              style={({ pressed }) => [styles.row, styles.rowDanger, pressed && styles.rowPressed]}
-              disabled={roleLoading && !isOwner}
-              onPress={() => setConfirmOpen(true)}>
-              <View style={[styles.rowIcon, styles.rowIconDanger]}>
-                <PhiloiIcon name="leave" size={18} color={Colors.danger} />
-              </View>
-              <Text style={[styles.rowLabel, styles.rowLabelDanger]}>
-                {isOwner ? 'Delete campfire' : 'Leave campfire'}
-              </Text>
-            </Pressable>
+            {/* Gym Spark: THE gym room is the Chat tab. Leaving it would strand the member (messages
+                need membership) and deleting it would empty everyone's Chat, so neither is offered. */}
+            {GYM_SPARK && groupId === GYM_ROOM_ID ? null : (
+              <Pressable
+                style={({ pressed }) => [styles.row, styles.rowDanger, pressed && styles.rowPressed]}
+                disabled={roleLoading && !isOwner}
+                onPress={() => setConfirmOpen(true)}>
+                <View style={[styles.rowIcon, styles.rowIconDanger]}>
+                  <PhiloiIcon name="leave" size={18} color={Colors.danger} />
+                </View>
+                <Text style={[styles.rowLabel, styles.rowLabelDanger]}>
+                  {isOwner ? 'Delete campfire' : 'Leave campfire'}
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
 

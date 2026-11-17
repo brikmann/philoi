@@ -115,3 +115,12 @@ export const GOOGLE_CALENDAR_ENABLED = true;
 // iOS is unaffected — Family Controls is gated by the entitlement and the picker, not by this.
 export const FOCUS_NUDGE_ANDROID_ENABLED: boolean =
   Constants.expoConfig?.extra?.focusNudgeAndroid === true;
+
+// THE GYM SPARK (CODE_PROMPT_gym_spark.md, mocks 400–403). A cut-down build for one ~40-person gym
+// pocket: the bar is Feed · Board · Lock In · You, the Feed (Agora posts, newest first) is home, the
+// Board is one weekly sessions leaderboard, posts are comment-only (no cheer/like control anywhere),
+// and Discover / Chat / clubs / campus / rooms are hidden from the bar and the drawer. Nothing is
+// deleted — every hidden surface and route still exists, and flipping this false restores the
+// connection-first app exactly. Server side is additive (migration 0301: agora_posts.is_pr,
+// get_gym_feed, get_gym_board, set_agora_post_pr); installed builds are unaffected.
+export const GYM_SPARK = true;

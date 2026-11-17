@@ -17,6 +17,7 @@ import { CosmeticAvatar } from '@/components/economy/public-identity';
 import { HouseSealInline } from '@/components/house/house-seal';
 import { IdentityLine } from '@/components/house/identity-line';
 import { Icon, IconText } from '@/components/ui/icon';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { PublicLoadout } from '@/hooks/use-public-loadouts';
@@ -678,7 +679,8 @@ function Rail({
         <Text style={styles.railLabel}>{item.comments > 0 ? item.comments : 'comment'}</Text>
       </Pressable>
 
-      <CheerButton item={item} flame={flame} mine={mine} onCheer={onCheer} />
+      {/* GYM SPARK · comment-only: no cheer anywhere. The cheer RPC stays for installed builds. */}
+      {GYM_SPARK ? null : <CheerButton item={item} flame={flame} mine={mine} onCheer={onCheer} />}
 
       {/* ⚔ only on a verified, comparable lift a friend posted — the server's can_challenge. */}
       {lift && lift.can_challenge && !mine ? (

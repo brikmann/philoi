@@ -23,6 +23,7 @@ import { fetchCampfireMembers } from '@/lib/api/groups';
 import { useAuth } from '@/lib/auth/auth-context';
 import { useFlameRamp } from '@/lib/economy/flame-ramp';
 import type { CampfireMember } from '@/types/database';
+import { GYM_SPARK } from '@/constants/feature-flags';
 
 // THE CAMPFIRE, AS A FULL-SCREEN CHAT (design-mocks/101-campfire-chat.html).
 //
@@ -278,13 +279,16 @@ export default function GroupScreen() {
         <View style={styles.topActions}>
           {/* 0277 · this campfire's channel on the Feed — what members POSTED here (gym comps,
               clips), as opposed to the chat below. Opens Social's Feed on that chip (mock 320). */}
-          <Pressable
-            style={styles.iconBtn}
-            onPress={() => router.navigate({ pathname: '/social', params: { channel: `campfire:${groupId}` } })}
-            accessibilityRole="button"
-            accessibilityLabel="Campfire posts">
-            <NavGlyph name="photo" size={18} color={Colors.ink} />
-          </Pressable>
+          {/* Gym Spark hides Discover (/social), so this button would open a hidden screen. */}
+          {GYM_SPARK ? null : (
+            <Pressable
+              style={styles.iconBtn}
+              onPress={() => router.navigate({ pathname: '/social', params: { channel: `campfire:${groupId}` } })}
+              accessibilityRole="button"
+              accessibilityLabel="Campfire posts">
+              <NavGlyph name="photo" size={18} color={Colors.ink} />
+            </Pressable>
+          )}
           {/* Phase 8.2 · the 🏆 panel only exists for a campfire whose admins turned standings on
               (0292, off by default). Off, the options sheet says "Leaderboard off · this club's choice". */}
           {group?.standings_enabled ? (

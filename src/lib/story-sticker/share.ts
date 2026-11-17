@@ -3,6 +3,7 @@ import type { RefObject } from 'react';
 import { Alert, type View } from 'react-native';
 
 import StoryShare from '../../../modules/philoi-story-share';
+import { measureView, waitForSettledFrame } from './settle';
 
 // Capture + hand-off for the story sticker. Same lazy-require rule as share-card.ts: view-shot,
 // expo-sharing and expo-media-library resolve their native bindings at import time, so a build that
@@ -20,17 +21,41 @@ export const STICKER_EXPORT_WIDTH = 1080;
 /**
  * Photograph the sticker to a PNG on disk. PNG keeps the alpha, so the canvas around the card stays
  * transparent and Instagram composites only the card over the person's photo.
+ *
+ * Waits for a SETTLED frame first (settle.ts): the tap that called this may have just changed what
+ * the sticker shows, and the commit has not been painted yet. The size is then re-measured from the
+ * view itself, so the export's aspect ratio matches the pixels being photographed rather than an
+ * `onLayout` size from before the change. `size` is only the fallback when measuring fails.
  */
 export async function captureSticker(ref: RefObject<View | null>, size: { width: number; height: number }): Promise<string | null> {
-  if (!ref.current || size.width <= 0) return null;
+  if (!ref.current) return null;
+  await waitForSettledFrame();
+  if (!ref.current) return null;
+  const measured = (await measureView(ref)) ?? size;
+  if (measured.width <= 0 || measured.height <= 0) return null;
   const { captureRef } = require('react-native-view-shot') as typeof import('react-native-view-shot');
   return captureRef(ref, {
     format: 'png',
     quality: 1,
     result: 'tmpfile',
     width: STICKER_EXPORT_WIDTH,
-    height: Math.round((STICKER_EXPORT_WIDTH * size.height) / size.width),
+    height: Math.round((STICKER_EXPORT_WIDTH * measured.height) / measured.width),
   });
+}
+
+/**
+ * The whole one-button path: capture, Instagram Stories when it can take it, the system share
+ * sheet otherwise. Resolves where it went, or null when nothing could be captured.
+ */
+export async function shareSticker(
+  ref: RefObject<View | null>,
+  size: { width: number; height: number }
+): Promise<'instagram' | 'system' | null> {
+  const uri = await captureSticker(ref, size);
+  if (!uri) return null;
+  if (canShareToInstagramStories() && (await shareStickerToInstagram(uri))) return 'instagram';
+  await shareStickerSystem(uri);
+  return 'system';
 }
 
 /** True when the one-tap Stories hand-off can run — native module present, App ID set, Instagram installed. */

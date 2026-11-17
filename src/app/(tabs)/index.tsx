@@ -3,9 +3,11 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { GymFeedScreen } from '@/components/gym-spark/gym-feed-screen';
 import { HomeFeed } from '@/components/home/home-feed';
 import { AppTopBar } from '@/components/nav/app-top-bar';
 import { RoomsTab } from '@/components/rooms/rooms-tab';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts } from '@/constants/theme';
 
 // HOME = THE FEED (ShareSpot mock 344). You open the app and land in the social feed.
@@ -21,7 +23,13 @@ const PANES: { key: Pane; label: string }[] = [
   { key: 'rooms', label: 'Rooms' },
 ];
 
+// THE GYM SPARK: home is the gym Feed (mock 400) — GymFeedScreen owns its own header, chips and FAB.
+// GYM_SPARK = false renders the connection-first home below, unchanged.
 export default function HomeScreen() {
+  return GYM_SPARK ? <GymFeedScreen /> : <ConnectionHomeScreen />;
+}
+
+function ConnectionHomeScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ lockin?: string; pane?: string }>();
   const [pane, setPane] = useState<Pane>(params.pane === 'rooms' || params.pane === 'friends' ? params.pane : 'home');

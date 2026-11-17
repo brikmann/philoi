@@ -38,7 +38,9 @@ export type NavGlyphName =
   | 'anthem'
   | 'ticket'
   // ── ShareSpot (ss0 §1): the Lock In slot — a pencil, the study/project signal. Never swords. ──
-  | 'pencil';
+  | 'pencil'
+  // ── THE GYM SPARK (mock 402): the Board slot — an axis and three bars. ──
+  | 'board';
 
 const S = { fill: 'none', stroke: 'currentColor', strokeWidth: 2.6, strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
@@ -120,6 +122,15 @@ const GLYPHS: Record<NavGlyphName, ReactNode> = {
       <Path d="M30 9 L39 18 L18 39 L8 40 L9 30 Z" {...S} />
       <Path d="M26 13 L35 22" {...S} />
       <Path d="M9 30 L18 39" {...S} />
+    </G>
+  ),
+  // Mock 402's Board: an L axis with three bars standing on it (short, tall, mid).
+  board: (
+    <G>
+      <Path d="M9 9 V39 H40" {...S} />
+      <Path d="M17 33 V25" {...S} />
+      <Path d="M25 33 V15" {...S} />
+      <Path d="M33 33 V22" {...S} />
     </G>
   ),
   brain: (

@@ -7,6 +7,7 @@ import { MilestoneShareCard } from '@/components/economy/milestone-share-card';
 import { IconText } from '@/components/ui/icon';
 import { SpaceButton, SpaceEmpty, SpaceHeader, SpaceIconButton, SPACE_GUTTER } from '@/components/ui/space-kit';
 import { UiGlyph } from '@/components/ui/ui-glyph';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useShareRank } from '@/hooks/use-share-rank';
 import { track } from '@/lib/analytics';
@@ -171,7 +172,8 @@ export default function MilestoneScreen() {
 
             {/* Cheering your own post is not a thing — the server would reject the notification
                 anyway, and a lit button that does nothing is worse than no button. */}
-            {!isOwn ? (
+            {/* Gym Spark is comment-only: no cheer control or count anywhere. */}
+            {GYM_SPARK ? null : !isOwn ? (
               <Pressable
                 style={[styles.secondary, milestone.cheered && styles.secondaryOn]}
                 onPress={handleCheer}

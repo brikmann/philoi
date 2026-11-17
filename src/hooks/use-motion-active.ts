@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { createContext, createElement, useContext, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { useIsFocused } from 'expo-router';
 
@@ -87,6 +87,23 @@ export function useAppActive(): boolean {
   return useSyncExternalStore(subscribeAppActive, getAppActive, getAppActive);
 }
 
+// ── The capture half ──
+//
+// A share card is not watched, it is PHOTOGRAPHED. Every loop gated on this hook (the footer
+// RankBadge's Primordial aura, PersonalFlame, card/item art, ...) used to keep running inside the
+// off-screen capture targets, so each exported PNG caught a random phase of it — the "captured
+// mid-animation" share-card bug. Inside <MotionStill> this hook answers false from the first render,
+// so those loops never start and the card holds its designed resting pose: the same frame a
+// reduce-motion user sees, identical on every capture. Default false, so nothing outside a capture
+// target changes.
+const MotionStillContext = createContext(false);
+
+/** Freeze every `useMotionActive`-gated loop below this point. Wrap capture targets in it. */
+export function MotionStill({ children }: { children: ReactNode }) {
+  // createElement rather than JSX: this module is .ts, and renaming it would touch 30 imports.
+  return createElement(MotionStillContext.Provider, { value: true }, children);
+}
+
 /**
  * True while this screen is both focused and in the foreground — i.e. while the pixels this
  * component draws can actually reach a human. Gate every infinite cosmetic loop on it:
@@ -118,7 +135,8 @@ export function useAppActive(): boolean {
 export function useMotionActive(): boolean {
   const focused = useIsFocused();
   const foreground = useAppActive();
-  return focused && foreground;
+  const still = useContext(MotionStillContext);
+  return focused && foreground && !still;
 }
 
 /**

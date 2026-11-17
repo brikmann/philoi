@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/ui/icon';
 import { PhiloiIcon, type PhiloiIconName } from '@/components/ui/philoi-icon';
+import { GYM_SPARK } from '@/constants/feature-flags';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { campfireUrl } from '@/lib/api/rooms';
 import { useAuth } from '@/lib/auth/auth-context';
@@ -53,7 +54,7 @@ type NavGroup = { title: string; rows: NavRow[] };
 // Settings apart. Rooms opens Home → Rooms (where group chats live). Destinations the mock dropped
 // stay reachable elsewhere: Forge + Inventory from the Shop and your Campfire, Cindy from every
 // header, Challenges + fitness from Lock In, People like you from Search.
-const GROUPS: NavGroup[] = [
+const CLASSIC_GROUPS: NavGroup[] = [
   {
     title: 'You',
     rows: [
@@ -72,6 +73,26 @@ const GROUPS: NavGroup[] = [
     ],
   },
 ];
+
+// THE GYM SPARK (GYM_SPARK, CODE_PROMPT_gym_spark.md): the gym build's menu is only what that build
+// is about — no Leaderboards (the Board tab replaced it), no Rooms, no Shop / Flame Pass (economy is
+// frozen). What stays: Notifications, Friends (the Feed's Following chip is built on them), Invite,
+// lock-in History, and Settings — which is where Support, Legal, sign-out and Delete account live,
+// so the App Store's must-be-reachable rows are still one tap from here. Nothing is deleted: every
+// dropped destination keeps its route, and GYM_SPARK = false brings this menu back exactly.
+const SPARK_GROUPS: NavGroup[] = [
+  {
+    title: 'You',
+    rows: [
+      { key: 'notifications', label: 'Notifications', icon: 'bell', route: '/notifications' },
+      { key: 'friends', label: 'Friends', icon: 'friends', route: '/friends', match: ['/friends', '/people', '/friend-profile'] },
+      { key: 'invite', label: 'Invite friends', icon: 'person-plus', route: '/invite', match: ['/invite', '/add-friend'] },
+      { key: 'history', label: 'History', icon: 'agora', route: '/lock-in-history' },
+    ],
+  },
+];
+
+const GROUPS: NavGroup[] = GYM_SPARK ? SPARK_GROUPS : CLASSIC_GROUPS;
 
 const SETTINGS_ROW: NavRow = { key: 'settings', label: 'Settings', icon: 'settings', route: '/settings' };
 

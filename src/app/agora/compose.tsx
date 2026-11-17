@@ -26,7 +26,8 @@ import {
 import { ArtTagSheet } from '@/components/post/art-tag-sheet';
 import { Icon, type IconName } from '@/components/ui/icon';
 import { NavGlyph, type NavGlyphName } from '@/components/ui/nav-glyph';
-import { AGORA_VIDEO_ENABLED } from '@/constants/feature-flags';
+import { AGORA_VIDEO_ENABLED, GYM_SPARK } from '@/constants/feature-flags';
+import { GymComposer } from '@/components/gym-spark/compose/gym-composer';
 import { ScreenBackground } from '@/components/ui/screen-background';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { announceAgoraPost } from '@/lib/agora-just-posted';
@@ -142,7 +143,13 @@ function slotOf(choice: AchievementChoice): AttachSlot {
 
 type Lane = { kind: 'forest' | 'campfire'; id: string; name: string; emoji?: string };
 
+// THE GYM SPARK (mock 401): the cut-down composer — photo, caption, Attach PR / session, always
+// public. GYM_SPARK = false renders the full composer below, unchanged.
 export default function AgoraComposeScreen() {
+  return GYM_SPARK ? <GymComposer /> : <FullComposeScreen />;
+}
+
+function FullComposeScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const params = useLocalSearchParams<
