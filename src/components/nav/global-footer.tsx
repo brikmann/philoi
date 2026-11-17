@@ -1,8 +1,11 @@
 import { usePathname, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import { LayoutAnimationConfig } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BottomBar, TAB_SLOTS, type TabKey } from '@/components/nav/bottom-bar';
+import { LiveLockInBar } from '@/components/nav/live-lockin-bar';
 import { GYM_SPARK } from '@/constants/feature-flags';
 import { GYM_ROOM_ID } from '@/lib/api/gym-spark';
 import { useActiveSession } from '@/lib/active-session-context';
@@ -76,7 +79,7 @@ const HIDDEN: string[] = [
 const MODAL_SUFFIXES = ['/edit', '/invite'];
 
 /** Spark-only first-run routes with no footer (see isHidden). */
-const SPARK_ONBOARDING = ['/interests', '/discover/matchmaking', '/discover/your-people'];
+const SPARK_ONBOARDING = ['/interests', '/discover/matchmaking', '/discover/your-people', '/house/patron'];
 
 function isHidden(path: string): boolean {
   if (HIDDEN.some((p) => path === p || path.startsWith(p + '/'))) return true;
@@ -98,7 +101,7 @@ export function GlobalFooter() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { session, needsHandle, needsConsent, needsAccountDisabled } = useAuth();
-  const { session: activeSession } = useActiveSession();
+  const { session: activeSession, pause, resume } = useActiveSession();
   const onTab = TAB_PATHS[pathname] ?? null;
   // The unread-DM badge moved to Home's ✉ (ShareSpot §2) along with Chat's slot.
   const [lastTab, setLastTab] = useState<TabKey>('index');
@@ -112,22 +115,44 @@ export function GlobalFooter() {
 
   if (!usable || isHidden(pathname)) return null;
 
+  // THE RUNNING-TIMER BAR (v2 fixes §6, mock 408) rides on top of the nav in this same column, so it
+  // shows exactly where the footer does — every tab and drawer screen, never the lock-in screen,
+  // composers or onboarding (isHidden above) — and, being in normal flow under the navigator like the
+  // nav itself, every screen lays out above it rather than under it. Spark only.
+  //
+  // LayoutAnimationConfig skipExiting: the bar's exit animation is for a session ENDING (the bar
+  // alone unmounts). When the whole footer hides — opening the lock-in screen — it must just go,
+  // not leave a ghost pill sliding out over the next screen.
   return (
-    <BottomBar
-      active={onTab ?? lastTab}
-      sessionLive={Boolean(activeSession)}
-      bottomInset={insets.bottom}
-      onSelect={(key) => {
-        const slot = TAB_SLOTS.find((s) => s.key === key);
-        if (!slot) return;
-        // Post opens the composer modal on top of wherever you are (mock 346: one tap from every screen).
-        if (key === 'post') {
-          router.push(slot.href as never);
-          return;
-        }
-        // navigate(), not push(): back to the (tabs) screen already in the stack, never a second copy.
-        router.navigate(slot.href as never);
-      }}
-    />
+    <LayoutAnimationConfig skipExiting>
+      <View>
+        {GYM_SPARK && activeSession ? (
+          <LiveLockInBar
+            session={activeSession}
+            // The same route the Feed's "Your session" CTA pushes; with a session already running
+            // the lock-in screen resumes it rather than starting another.
+            onOpen={() => router.push('/lock-in')}
+            onPause={pause}
+            onResume={resume}
+          />
+        ) : null}
+        <BottomBar
+          active={onTab ?? lastTab}
+          sessionLive={Boolean(activeSession)}
+          bottomInset={insets.bottom}
+          onSelect={(key) => {
+            const slot = TAB_SLOTS.find((s) => s.key === key);
+            if (!slot) return;
+            // Post opens the composer modal on top of wherever you are (mock 346: one tap from every screen).
+            if (key === 'post') {
+              router.push(slot.href as never);
+              return;
+            }
+            // navigate(), not push(): back to the (tabs) screen already in the stack, never a second copy.
+            router.navigate(slot.href as never);
+          }}
+        />
+      </View>
+    </LayoutAnimationConfig>
   );
 }

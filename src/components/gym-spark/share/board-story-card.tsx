@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { formatBoardXp } from '@/components/gym-spark/board/gym-board-row';
 import { ShareCardFrame, fitFontSize } from '@/components/share-card-frame';
 import { IconText } from '@/components/ui/icon';
 import { Colors, Fonts } from '@/constants/theme';
@@ -10,7 +11,7 @@ import type { GymBoardRow, GymBoardWindow } from '@/lib/api/gym-spark';
 // ShareCardFrame — the same ground, ray fan and "@handle · philoi.app" footer every share card wears
 // — with the Board's three numbers as the hero. Only the stat content differs.
 //
-// The numbers are exactly the row the Board drew (get_gym_board): rank, sessions, week streak.
+// The numbers are exactly the row the Board drew (get_gym_board): rank, XP, week streak.
 // Nothing derived, nothing rounded up.
 
 const GOLD = '#FFD166';
@@ -24,13 +25,13 @@ export const BoardStoryCard = forwardRef<View, { row: GymBoardRow; window: GymBo
   ref
 ) {
   const rankText = `#${row.rank}`;
-  const sessions = `${row.sessions} lock-in${row.sessions === 1 ? '' : 's'}`;
+  const xp = `${formatBoardXp(row.xp)} XP`;
   return (
     <ShareCardFrame ref={ref} kick={boardStoryKick(window)} kickColor={GOLD} kickIcon="trophy" handle={row.handle}>
       <Text style={[styles.rank, { fontSize: fitFontSize(rankText, 132, 84, 3) }]}>{rankText}</Text>
       <Text style={styles.window}>{window === 'week' ? 'this week' : 'all-time'}</Text>
       <View style={styles.statRow}>
-        <Text style={styles.stat}>{sessions}</Text>
+        <Text style={styles.stat}>{xp}</Text>
         {row.week_streak > 0 ? (
           <>
             <Text style={styles.dot}>·</Text>

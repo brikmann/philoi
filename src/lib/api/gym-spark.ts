@@ -3,9 +3,9 @@ import type { AgoraCursor, AgoraItem } from '@/types/database';
 
 // THE GYM SPARK's server contract (migration 0301, CODE_PROMPT_gym_spark.md). Additive only:
 //   • get_gym_feed  — get_agora_feed's rows + is_pr + the newest comment, for the Feed (mock 400).
-//   • get_gym_board — one weekly (or all-time) leaderboard, everyone on it, ranked by sessions (402).
+//   • get_gym_board — one weekly (or all-time) leaderboard, everyone on it, ranked by XP (402; 0305).
 //   • set_agora_post_pr — the author flags their own post as a PR (composer's "Attach PR", 401).
-// Same firewall as lib/api/agora.ts: nothing here touches XP, embers or rank.
+// Same firewall as lib/api/agora.ts: nothing here WRITES XP, embers or rank (the board only reads XP).
 
 /** Feed chips (mock 400). 'gym' = every post from everyone; 'following' = people you follow; 'prs' = PR-flagged. */
 export type GymFeedFilter = 'gym' | 'following' | 'prs';
@@ -42,20 +42,22 @@ export async function setAgoraPostPr(postId: string, isPr: boolean): Promise<voi
 export type GymBoardWindow = 'week' | 'all';
 
 export type GymBoardRow = {
+  /** 1-based place, unique (0305: row_number over xp desc, display_name, user_id) — one 🥇 / 🥈 / 🥉. */
   rank: number;
   user_id: string;
   display_name: string;
   handle: string | null;
   avatar_url: string | null;
-  /** The ranking metric — completed lock-in sessions in the window. Named `sessions` for v1. */
-  sessions: number;
-  /** Consecutive Sunday-weeks, ending this week (or last week if none yet this week), with ≥1 session. */
+  /** The ranking metric (0305): 'week' = XP earned this week (sum of check_ins.xp_earned since
+   *  week_start()); 'all' = lifetime XP (live_rank_xp — the number shown as your XP everywhere). */
+  xp: number;
+  /** Consecutive Sunday-weeks, ending this week (or last week if none yet this week), with ≥1 finished lock-in. */
   week_streak: number;
   is_me: boolean;
 };
 
 /**
- * The whole board, ranked desc. Everyone with ≥1 session in the window is on it, and the caller's
+ * The whole board, ranked by XP desc. Everyone with ≥1 XP in the window is on it, and the caller's
  * own row is ALWAYS included (with 0 if they have none) so the screen can pin it.
  */
 export async function fetchGymBoard(window: GymBoardWindow): Promise<GymBoardRow[]> {

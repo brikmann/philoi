@@ -7,14 +7,13 @@ import { GymPostCard } from '@/components/gym-spark/gym-post-card';
 import { GymTopBar } from '@/components/gym-spark/gym-top-bar';
 import { PrStoryButton } from '@/components/gym-spark/share/pr-story-button';
 import { useGymPostModeration } from '@/components/gym-spark/use-gym-post-moderation';
-import { NavGlyph } from '@/components/ui/nav-glyph';
 import { Colors, Fonts, Spacing } from '@/constants/theme';
-import { useActiveSession } from '@/lib/active-session-context';
 import { fetchGymFeed, type GymFeedFilter, type GymFeedItem } from '@/lib/api/gym-spark';
 
 // THE GYM SPARK · the Feed, which is home (mock 400). The global GymTopBar (✈ 🔔 ☰, v2 §6), two chips
-// (Feed · Following — v2 §4 dropped PRs) over get_gym_feed, newest first, a FAB that opens the composer.
-// Comment-only — no cheer anywhere. "Start session" rides on the chip row: the bar itself is globals only.
+// (Feed · Following — v2 §4 dropped PRs) over get_gym_feed, newest first, posting is the ＋ in the global top bar (GymTopBar).
+// Comment-only — no cheer anywhere. The chips are two equal full-width pills; a running session lives in
+// the docked live lock-in bar, not here.
 //
 // Refreshes on focus, so a post you just made (compose → detail → back) and a comment you just left
 // (its 💬 count and the top-comment line) are both there when you land back here. The refetch asks
@@ -38,7 +37,6 @@ const EMPTY: Record<GymFeedFilter, string> = {
 export function GymFeedScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ lockin?: string }>();
-  const { session: activeSession } = useActiveSession();
   const [filter, setFilter] = useState<GymFeedFilter>('gym');
   const [items, setItems] = useState<GymFeedItem[] | null>(null);
   const [error, setError] = useState(false);
@@ -150,16 +148,6 @@ export function GymFeedScreen() {
           );
         })}
       </View>
-        {/* Lock In left the bar in this build (Feed · Board · Chat · You) — starting a session is an
-            action here instead, and it still feeds the Board. A running one goes back to it. */}
-        <Pressable
-          onPress={() => (activeSession ? router.push('/lock-in') : router.navigate('/lockin'))}
-          style={styles.start}
-          accessibilityRole="button"
-          accessibilityLabel={activeSession ? 'Return to your session' : 'Start session'}>
-          <NavGlyph name="flame" size={15} color="#1A1030" />
-          <Text style={styles.startText}>{activeSession ? 'Your session' : 'Start session'}</Text>
-        </Pressable>
       </View>
 
       {items === null ? (
@@ -193,14 +181,6 @@ export function GymFeedScreen() {
         />
       )}
 
-      <Pressable
-        style={styles.fab}
-        onPress={() => router.push('/agora/compose')}
-        accessibilityRole="button"
-        accessibilityLabel="New post">
-        <NavGlyph name="plus" size={30} color="#160D26" />
-      </Pressable>
-
       {moderation.sheets}
     </SafeAreaView>
   );
@@ -210,27 +190,10 @@ function Separator() {
   return <View style={styles.sep} />;
 }
 
-const FAB = 58;
 
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-  },
-  start: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: Colors.navEmber,
-    borderWidth: 1,
-    borderColor: Colors.navEmber2,
-  },
-  startText: {
-    fontFamily: Fonts.bodyBold,
-    fontSize: 13.5,
-    color: '#1A1030',
   },
   chipRow: {
     flexDirection: 'row',
@@ -241,12 +204,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.twelve,
   },
   chips: {
+    flex: 1,
     flexDirection: 'row',
     gap: Spacing.two,
   },
   chip: {
+    flex: 1,
+    alignItems: 'center',
     paddingHorizontal: 18,
-    paddingVertical: 9,
+    paddingVertical: 10,
     borderRadius: 999,
     backgroundColor: Colors.spacePanel,
     borderWidth: 1,
@@ -269,7 +235,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: Spacing.three,
-    paddingBottom: FAB + Spacing.six,
+    paddingBottom: Spacing.six,
     flexGrow: 1,
   },
   sep: {
@@ -286,21 +252,5 @@ const styles = StyleSheet.create({
   },
   more: {
     marginVertical: Spacing.four,
-  },
-  fab: {
-    position: 'absolute',
-    right: Spacing.three,
-    bottom: Spacing.three,
-    width: FAB,
-    height: FAB,
-    borderRadius: FAB / 2,
-    backgroundColor: Colors.navEmber2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: Colors.navEmber,
-    shadowOpacity: 0.6,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 10,
   },
 });

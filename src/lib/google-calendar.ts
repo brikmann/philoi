@@ -76,7 +76,9 @@ const APP_RETURN_URL = 'philoi://gcal-auth';
  */
 const PENDING_AUTH_KEY = 'philoi_gcal_pending_auth';
 
-type PendingAuth = { state: string; codeVerifier: string };
+/** `redirectUri` is the exact string the authorize URL carried — the exchange is sent THIS copy,
+ * not a recomputation, so the two cannot drift apart. */
+type PendingAuth = { state: string; codeVerifier: string; redirectUri?: string };
 
 async function putPendingAuth(pending: PendingAuth): Promise<void> {
   await SecureStore.setItemAsync(PENDING_AUTH_KEY, JSON.stringify(pending));
@@ -89,7 +91,13 @@ async function takePendingAuth(): Promise<PendingAuth | null> {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw);
-    if (typeof parsed?.state === 'string' && typeof parsed?.codeVerifier === 'string') return parsed;
+    if (typeof parsed?.state === 'string' && typeof parsed?.codeVerifier === 'string') {
+      return {
+        state: parsed.state,
+        codeVerifier: parsed.codeVerifier,
+        redirectUri: typeof parsed.redirectUri === 'string' ? parsed.redirectUri : undefined,
+      };
+    }
   } catch {
     // A malformed blob is treated as no pending handshake at all.
   }
@@ -112,13 +120,38 @@ const consumedCodes = new Set<string>();
  * type accepts only http/https redirect URIs and rejects `philoi://` outright at the authorize
  * step. See supabase/functions/gcal-oauth-callback for the whole story.
  *
- * ⚠️ This exact string must be registered under the Web client's **Authorized redirect URIs** in
- * Google Cloud, and it must match what gcal-oauth-exchange sends at token-exchange time (it
- * derives the same value from SUPABASE_URL server-side). A mismatch surfaces as Google's
- * `redirect_uri_mismatch`, which is loud — deliberately, rather than failing quietly.
+ * ⚠️ PINNED TO THE PROJECT-REF HOST, NOT DERIVED FROM `supabaseUrl`. It used to be
+ * `${SUPABASE_URL}/functions/v1/gcal-oauth-callback`, which was correct when it was written
+ * (2026-09-09, SUPABASE_URL = the *.supabase.co project URL). On 2026-10-06 (b40abf7) the app's
+ * SUPABASE_URL moved to the auth.philoi.app custom domain, and this string silently moved with it
+ * — while the URI registered in Google Cloud, AND the value gcal-oauth-exchange derives from the
+ * Edge runtime's own SUPABASE_URL (always the *.supabase.co project URL), stayed put. Result:
+ * Google's `Error 400: redirect_uri_mismatch` at the authorize step. An OAuth redirect URI is a
+ * registration in someone else's console, not a function of whichever API host the app happens
+ * to talk to, so it is a constant here.
+ *
+ * This ONE string is the client's single source of truth: it is sent at authorize time, parked
+ * with the PKCE verifier, and the parked copy is what goes to gcal-oauth-exchange — which uses it
+ * only if it equals its own allow-listed value (GCAL_OAUTH_REDIRECT_URI, else
+ * `${SUPABASE_URL}/functions/v1/gcal-oauth-callback` on the Edge runtime). It must ALSO be
+ * registered byte-for-byte under the Web client's **Authorized redirect URIs** in Google Cloud.
+ * In __DEV__ it is logged on connect and shown under the Calendar connect card so it can be
+ * copied straight into the console.
  */
-function relayRedirectUri(): string {
-  return `${(SUPABASE_URL ?? '').replace(/\/$/, '')}/functions/v1/gcal-oauth-callback`;
+export const GCAL_RELAY_REDIRECT_URI = 'https://coaqgcquzywadrghzbfj.supabase.co/functions/v1/gcal-oauth-callback';
+
+/** Loud in development, silent in production: the redirect drifting is a config bug, not a
+ * member-facing state. */
+function assertSameRedirect(
+  label: string,
+  expected: string,
+  actual: string | null | undefined,
+  { fatal = true }: { fatal?: boolean } = {}
+): void {
+  if (!__DEV__ || actual == null || actual === expected) return;
+  const message = `[gcal] redirect_uri drift (${label}): authorize used "${expected}" but got "${actual}". Google will answer redirect_uri_mismatch.`;
+  console.error(message);
+  if (fatal) throw new GoogleCalendarConnectError(message);
 }
 
 export function isGoogleCalendarSupported(): boolean {
@@ -156,10 +189,16 @@ export type ConnectResult =
 export async function connectGoogleCalendar(): Promise<ConnectResult> {
   if (!isGoogleCalendarSupported() || !GOOGLE_WEB_CLIENT_ID) return { status: 'cancelled' };
 
+  const redirectUri = GCAL_RELAY_REDIRECT_URI;
+  if (__DEV__) {
+    // Copy this into Google Cloud → Credentials → Web client → Authorized redirect URIs.
+    console.log(`[gcal] authorize redirect_uri = ${redirectUri}`);
+  }
+
   const request = new AuthSession.AuthRequest({
     clientId: GOOGLE_WEB_CLIENT_ID,
     scopes: OAUTH_SCOPES,
-    redirectUri: relayRedirectUri(),
+    redirectUri,
     responseType: AuthSession.ResponseType.Code,
     // PKCE, and the verifier never leaves this device until it goes to our own Edge Function. The
     // code alone is worthless to an interceptor: redeeming it needs both this verifier and the
@@ -181,12 +220,15 @@ export async function connectGoogleCalendar(): Promise<ConnectResult> {
   });
 
   const authUrl = await request.makeAuthUrlAsync(discovery);
+  // What Google will actually compare against the registered list is the parameter in the URL,
+  // not the option above — check the built URL itself.
+  assertSameRedirect('authorize URL', redirectUri, new URL(authUrl).searchParams.get('redirect_uri'));
 
   // `state` and `codeVerifier` are final once the URL is built, so park them BEFORE the browser
   // opens: src/app/gcal-auth.tsx runs in a fresh mount when the redirect lands there and has no
   // other way to reach them.
   if (!request.codeVerifier) throw new GoogleCalendarConnectError('Couldn’t start a secure connection. Try again in a moment.');
-  await putPendingAuth({ state: request.state, codeVerifier: request.codeVerifier });
+  await putPendingAuth({ state: request.state, codeVerifier: request.codeVerifier, redirectUri });
 
   // Built by hand rather than via promptAsync(): promptAsync derives what it waits for from
   // `redirectUri`, which here is the https relay, so it would sit waiting for a URL the app is
@@ -246,10 +288,22 @@ export async function completeGoogleCalendarAuth(code: string, state: string | u
     throw new GoogleCalendarConnectError('That sign-in didn’t come back the way it went out. Try connecting again.');
   }
 
+  // The authorize-time string, carried through SecureStore. A handshake parked by an older build
+  // has none; the constant is the same value.
+  const redirectUri = pending.redirectUri ?? GCAL_RELAY_REDIRECT_URI;
+  assertSameRedirect('exchange request', GCAL_RELAY_REDIRECT_URI, redirectUri);
+
   const { data, error } = await supabase.functions.invoke('gcal-oauth-exchange', {
-    body: { code, codeVerifier: pending.codeVerifier },
+    body: { code, codeVerifier: pending.codeVerifier, redirectUri },
   });
   if (error) throw await describeFunctionError(error);
+
+  // The exchange echoes the redirect_uri it actually posted to Google (once redeployed — an older
+  // deploy returns nothing here and this is skipped).
+  // Not fatal: by this point Google has already answered, so throwing would only hide the result.
+  assertSameRedirect('exchange posted to Google', redirectUri, typeof data?.redirectUri === 'string' ? data.redirectUri : null, {
+    fatal: false,
+  });
 
   if (!data?.connected) throw new GoogleCalendarConnectError(reasonMessage(data?.reason));
   return { status: 'connected', accountEmail: typeof data.accountEmail === 'string' ? data.accountEmail : null };
@@ -298,6 +352,9 @@ async function describeFunctionError(error: unknown): Promise<Error> {
     return new GoogleCalendarConnectError(`Google refused the connection (${googleError}). ${googleAdvice(googleError)}`);
   }
 
+  if (__DEV__ && body.reason === 'redirect_uri_not_allowed') {
+    console.error('[gcal] exchange rejected redirect_uri', body);
+  }
   const serverError = typeof body.error === 'string' ? body.error : null;
   if (serverError) return new GoogleCalendarConnectError(`Calendar connect failed [${status ?? '?'}]: ${serverError}`);
 

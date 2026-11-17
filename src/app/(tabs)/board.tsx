@@ -22,19 +22,16 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import type { GymBoardRow, GymBoardWindow } from '@/lib/api/gym-spark';
 import { formatWeekCountdown } from '@/lib/time/week';
 
-// THE BOARD (GYM_SPARK, mock 402, CODE_PROMPT_gym_spark.md §3, v2 §6). One generic activity
-// leaderboard, everyone on it, ranked by lock-ins — This week (Sunday 00:00 UTC reset, lib/time/week.ts
-// ↔ SQL week_start()) or All-time. Reads get_gym_board through lib/api/gym-spark.ts; the ranking metric
-// is the server's to swap, this screen just draws `sessions` (labelled "lock-ins").
+// THE BOARD (GYM_SPARK, mock 402, CODE_PROMPT_gym_spark.md §3, v2 §6, v2-fixes §3). One XP-first
+// leaderboard, everyone on it, ranked by XP — This week (XP earned since Sunday 00:00 UTC,
+// lib/time/week.ts ↔ SQL week_start()) or All-time (lifetime XP). Reads get_gym_board (0305) through
+// lib/api/gym-spark.ts; each row's big number is its XP, the week streak is secondary.
 //
 // v2: the global GymTopBar on top (✈ 🔔 ☰ — nothing Board-specific in it), and the body is only the
 // toggle + the ranked list. The story-share button moved from the bar onto your own row.
 //
-// PLACES, NOT SERVER RANKS. get_gym_board uses rank(), so ties share a rank — and in a small gym where
-// most people have 1 session this week, nearly everyone came back rank 1 and wore 🥇. The server's
-// order is already deterministic (value desc, display_name, user_id), so the board draws 1-based
-// POSITION in that order: exactly one 🥇, one 🥈, one 🥉, numbers after. Tie order is alphabetical,
-// which is arbitrary but stable; the story card shares the same place the row shows.
+// PLACES: get_gym_board's `rank` is row_number() since 0305 — unique, already in xp-desc order — so
+// it is drawn as-is: exactly one 🥇, one 🥈, one 🥉 (and only on rows with XP), numbers after.
 //
 // YOUR ROW, ALWAYS: the server always returns the caller's row. It is highlighted in place, and when
 // it is not on screen a copy is pinned over the bottom of the list. "On screen" is FlatList's own
@@ -61,9 +58,7 @@ export default function BoardScreen() {
 function SparkBoard() {
   const router = useRouter();
   const [range, setRange] = useState<GymBoardWindow>('week');
-  const { rows: serverRows, failed, refreshing, refresh, resetInMs } = useGymBoard(range);
-  // Position, not rank() — see PLACES above. Your 0-lock-in row (always returned) keeps its place too.
-  const rows = serverRows?.map((r, i) => (r.rank === i + 1 ? r : { ...r, rank: i + 1 })) ?? null;
+  const { rows, failed, refreshing, refresh, resetInMs } = useGymBoard(range);
   // Starts true so a caller on the podium never sees the pin flash before the first viewability pass.
   const [meVisible, setMeVisible] = useState(true);
 
@@ -81,8 +76,8 @@ function SparkBoard() {
   );
 
   const me = rows?.find((r) => r.is_me) ?? null;
-  // The caller's own 0-session row is always returned; a board where nobody has a session is empty.
-  const hasActivity = Boolean(rows?.some((r) => r.sessions > 0));
+  // The caller's own 0-XP row is always returned; a board where nobody has XP is empty.
+  const hasActivity = Boolean(rows?.some((r) => r.xp > 0));
   const listRows = rows && hasActivity ? rows : [];
   const showPinned = Boolean(me) && hasActivity && !meVisible;
 
@@ -107,7 +102,7 @@ function SparkBoard() {
       </View>
 
       <View style={styles.captionRow}>
-        <Text style={styles.caption}>{range === 'week' ? 'LOCK-INS THIS WEEK · RESETS SUNDAY' : 'ALL-TIME LOCK-INS'}</Text>
+        <Text style={styles.caption}>{range === 'week' ? 'XP THIS WEEK · RESETS SUNDAY' : 'ALL-TIME XP'}</Text>
         {range === 'week' ? <Text style={styles.countdown}>{formatWeekCountdown(resetInMs)} left</Text> : null}
       </View>
 
@@ -148,8 +143,8 @@ function SparkBoard() {
               )
             ) : (
               <View style={styles.state}>
-                <Text style={styles.stateTitle}>{range === 'week' ? 'No lock-ins yet this week' : 'No lock-ins yet'}</Text>
-                <Text style={styles.stateBody}>Lock in to get on the board.</Text>
+                <Text style={styles.stateTitle}>{range === 'week' ? 'No XP yet this week' : 'No XP yet'}</Text>
+                <Text style={styles.stateBody}>Lock in to earn XP and get on the board.</Text>
                 <EmberCta label="Lock in" onPress={() => router.navigate('/lockin')} style={styles.stateCta} />
               </View>
             )

@@ -5,16 +5,22 @@ import { MatchAvatar } from '@/components/matchmaking/match-avatar';
 import { Colors, Fonts } from '@/constants/theme';
 import type { GymBoardRow } from '@/lib/api/gym-spark';
 
-// One row of THE BOARD (mock 402): place (medals for the podium), avatar, name + week streak, and
-// the big lock-in count on the right. `row.rank` is the board's 1-based POSITION (board.tsx maps the
-// server's tie-sharing rank() to it), so exactly one row wears each medal. A 0-lock-in row (your own,
-// always returned) gets no medal even if it lands in the top three of a near-empty board. Your own row wears the ember border/tint wherever it sits.
+// One row of THE BOARD (mock 402, v2 §3): place (medals for the podium), avatar, name + week streak
+// (secondary), and the big XP number on the right ("1,240 XP"). `row.rank` is the server's place —
+// unique since 0305 (row_number), so exactly one row wears each medal. A 0-XP row (your own, always
+// returned) gets no medal even if it lands in the top three of a near-empty board. Your own row wears
+// the ember border/tint wherever it sits.
 // The same component draws the pinned copy at the bottom of the screen (`pinned`), so the two can
 // never drift apart.
 
 const MEDALS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
 export const GYM_BOARD_ROW_HEIGHT = 72;
+
+/** "1,240" — grouped, whole XP. Shared with the story card so the two print the same number. */
+export function formatBoardXp(xp: number): string {
+  return Math.max(0, Math.round(xp)).toLocaleString('en-US');
+}
 
 export function GymBoardRowView({
   row,
@@ -25,12 +31,12 @@ export function GymBoardRowView({
   row: GymBoardRow;
   onPress: (row: GymBoardRow) => void;
   pinned?: boolean;
-  /** Drawn after the count — the story-share button on your own row. */
+  /** Drawn after the XP — the story-share button on your own row. */
   accessory?: ReactNode;
 }) {
-  const medal = row.sessions > 0 ? MEDALS[row.rank] : undefined;
+  const medal = row.xp > 0 ? MEDALS[row.rank] : undefined;
   const name = row.display_name || (row.handle ? `@${row.handle}` : 'Someone');
-  const sessionsLabel = row.sessions === 1 ? 'lock-in' : 'lock-ins';
+  const xpText = formatBoardXp(row.xp);
 
   return (
     <Pressable
@@ -42,7 +48,7 @@ export function GymBoardRowView({
         pressed && styles.pressed,
       ]}
       accessibilityRole="button"
-      accessibilityLabel={`Rank ${row.rank}, ${name}${row.is_me ? ', you' : ''}, ${row.sessions} ${sessionsLabel}, ${row.week_streak} week streak`}>
+      accessibilityLabel={`Rank ${row.rank}, ${name}${row.is_me ? ', you' : ''}, ${xpText} XP, ${row.week_streak} week streak`}>
       <View style={styles.rankCell}>
         {medal ? (
           <Text style={styles.medal}>{medal}</Text>
@@ -66,8 +72,10 @@ export function GymBoardRowView({
       </View>
 
       <View style={styles.countCell}>
-        <Text style={styles.count}>{row.sessions}</Text>
-        <Text style={styles.countLabel}>{sessionsLabel}</Text>
+        <Text style={styles.count} numberOfLines={1} adjustsFontSizeToFit>
+          {xpText}
+          <Text style={styles.countUnit}> XP</Text>
+        </Text>
       </View>
       {accessory}
     </Pressable>
@@ -147,15 +155,16 @@ const styles = StyleSheet.create({
   countCell: {
     alignItems: 'flex-end',
     minWidth: 56,
+    maxWidth: 120,
   },
   count: {
     fontFamily: Fonts.displayHeavy,
     fontSize: 22,
     color: Colors.ink,
   },
-  countLabel: {
-    fontFamily: Fonts.body,
-    fontSize: 11,
+  countUnit: {
+    fontFamily: Fonts.bodyBold,
+    fontSize: 13,
     color: Colors.spaceDim,
   },
 });

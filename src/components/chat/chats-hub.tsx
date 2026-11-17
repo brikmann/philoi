@@ -62,6 +62,37 @@ const FILTER_EMPTY: Record<ChatFilter, { title: string; body: string; cta: strin
   forest: { title: 'No forests yet', body: 'Forests are bigger rooms around a class, a gym or a goal.', cta: 'Browse forests', route: '/forests' },
 };
 
+/**
+ * Every conversation you're in, newest first: get_my_chats (0284) when the server has it, else the
+ * pre-0284 assembly. Shared with THE GYM SPARK's Chat tab (components/gym-spark/gym-chat-list.tsx).
+ */
+export async function loadChatList(userId: string): Promise<SocialChat[]> {
+  const fromServer = await fetchMyChats(userId).catch(() => null);
+  return fromServer ?? (await fetchMySocialChats(userId));
+}
+
+/** Opens a chat row: a campfire's room, a forest (its room chat on 0284), or the DM thread. */
+export function useOpenChat() {
+  const router = useRouter();
+  // 0284 · with get_my_chats the list carries unread + mute for rooms too, and a forest row opens
+  // the forest's room chat. fetchMyChats answers null on a server without it, and the list is
+  // built exactly the old way — the switch is invisible either way.
+  const rich = useChatSupport() === true;
+  return useCallback(
+    (chat: SocialChat) => {
+      if (chat.kind === 'campfire') router.push(`/group/${chat.id}`);
+      else if (chat.kind === 'forest')
+        router.push(
+          (rich
+            ? { pathname: '/forest-chat/[id]', params: { id: chat.id } }
+            : { pathname: '/forest/[id]', params: { id: chat.id } }) as never
+        );
+      else router.push({ pathname: '/dm/[friendId]', params: { friendId: chat.friendId } });
+    },
+    [router, rich]
+  );
+}
+
 export function ChatsHub() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -91,10 +122,7 @@ export function ChatsHub() {
     ];
   }, [chats, filter, query]);
 
-  // 0284 · with get_my_chats the list carries unread + mute for rooms too, and a forest row opens
-  // the forest's room chat. fetchMyChats answers null on a server without it, and the list is
-  // built exactly the old way — the switch is invisible either way.
-  const rich = useChatSupport() === true;
+  const open = useOpenChat();
 
   const loadLive = useCallback(async () => {
     try {
@@ -108,8 +136,7 @@ export function ChatsHub() {
     if (!userId) return;
     void loadLive();
     try {
-      const fromServer = await fetchMyChats(userId).catch(() => null);
-      setChats(fromServer ?? (await fetchMySocialChats(userId)));
+      setChats(await loadChatList(userId));
     } catch {
       setChats((prev) => prev ?? []);
     }
@@ -125,17 +152,6 @@ export function ChatsHub() {
   );
 
   useGatedInterval(loadLive, LIVE_POLL_MS, focused && !!userId);
-
-  function open(chat: SocialChat) {
-    if (chat.kind === 'campfire') router.push(`/group/${chat.id}`);
-    else if (chat.kind === 'forest')
-      router.push(
-        (rich
-          ? { pathname: '/forest-chat/[id]', params: { id: chat.id } }
-          : { pathname: '/forest/[id]', params: { id: chat.id } }) as never
-      );
-    else router.push({ pathname: '/dm/[friendId]', params: { friendId: chat.friendId } });
-  }
 
   return (
     <View style={[styles.chatsRoot, { paddingTop: insets.top }]}>
@@ -270,7 +286,7 @@ function NewChatSheet({ visible, onClose }: { visible: boolean; onClose: () => v
   );
 }
 
-function ChatRow({ chat, live, onPress }: { chat: SocialChat; live: number; onPress: () => void }) {
+export function ChatRow({ chat, live, onPress }: { chat: SocialChat; live: number; onPress: () => void }) {
   // A DM always has a count; a room has one only from get_my_chats (0284).
   const unread = chat.unread ?? 0;
   // 0284 · get_my_chats' mute bit (a campfire's is its group_members.chat_muted, switched from the

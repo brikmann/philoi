@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,6 +10,7 @@ import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
 import { useGoogleCalendarConnection } from '@/hooks/use-google-calendar-connection';
 import { useStravaConnection } from '@/hooks/use-strava-connection';
 import { getErrorMessage } from '@/lib/errors';
+import { GCAL_RELAY_REDIRECT_URI } from '@/lib/google-calendar';
 import { isStravaSupported } from '@/lib/strava';
 
 // ─────────────────────────── NATIVE CONNECT (SPEC_gym_spark_v2 §2) ───────────────────────────
@@ -154,6 +156,7 @@ function CalendarCard() {
           )
         }
       />
+      {__DEV__ ? <DevRedirectUriLine /> : null}
       <CalendarConsentDialog
         visible={consent}
         busy={busy}
@@ -170,6 +173,25 @@ function CalendarCard() {
         onConfirm={() => void runDisconnect()}
       />
     </>
+  );
+}
+
+/** __DEV__ only: the exact redirect_uri the Calendar connect authorizes with — the string that must
+ * be in Google Cloud → Credentials → Web client → Authorized redirect URIs. Tap to copy. */
+function DevRedirectUriLine() {
+  return (
+    <Pressable
+      onPress={() => {
+        void Clipboard.setStringAsync(GCAL_RELAY_REDIRECT_URI).then(() =>
+          Alert.alert('Copied redirect URI', GCAL_RELAY_REDIRECT_URI)
+        );
+      }}
+      accessibilityRole="button"
+      accessibilityLabel="Copy Google Calendar redirect URI">
+      <Text style={styles.devLine} selectable>
+        DEV · gcal redirect_uri (tap to copy): {GCAL_RELAY_REDIRECT_URI}
+      </Text>
+    </Pressable>
   );
 }
 
@@ -316,6 +338,12 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.spacePanel2,
     paddingVertical: 5,
     paddingHorizontal: 11,
+  },
+  devLine: {
+    fontFamily: Fonts.body,
+    fontSize: 10,
+    color: Colors.spaceDim,
+    paddingHorizontal: 13,
   },
   soonText: {
     fontFamily: Fonts.bodyBold,

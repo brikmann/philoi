@@ -17,8 +17,8 @@ import { canShareToInstagramStories, shareSticker } from '@/lib/story-sticker/sh
 // Board's numbers) and the hand-off is the story-sticker path (lib/story-sticker/share.ts) — the same
 // settle-then-capture, Instagram-then-system-sheet pipeline the lift and lock-in stickers use.
 //
-// Hidden when there is nothing worth posting: no row yet, or 0 sessions ("#31 · 0 sessions" is not
-// a flex, it is an ad for not going).
+// Hidden when there is nothing worth posting: no row yet, or 0 XP ("#31 · 0 XP" is not a flex, it
+// is an ad for not going).
 
 type Props = { row: GymBoardRow | null; window: GymBoardWindow };
 
@@ -27,7 +27,7 @@ export function BoardStoryButton({ row, window }: Props) {
   const [opened, setOpened] = useState(false);
   const [visible, setVisible] = useState(false);
 
-  if (!GYM_SPARK || !row || row.sessions <= 0) return null;
+  if (!GYM_SPARK || !row || row.xp <= 0) return null;
 
   return (
     <>

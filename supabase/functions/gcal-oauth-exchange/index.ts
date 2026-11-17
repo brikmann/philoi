@@ -7,12 +7,20 @@
 // never sees a Google access or refresh token, and never could: this function stores the refresh
 // token AES-256-GCM-encrypted and hands back only a boolean and a display email.
 //
-// WHY THE REDIRECT URI IS NOT A REQUEST PARAMETER. Google requires the token exchange's
-// redirect_uri to be byte-identical to the authorize call's. It would be natural to let the client
-// pass the value it used — and wrong: a redirect_uri the caller controls is a value the caller can
-// point somewhere else. The server derives it from its OWN environment instead (the same
-// gcal-oauth-callback relay Google is configured to redirect to), so a client that disagrees gets
-// a loud redirect_uri_mismatch from Google rather than a quiet substitution.
+// THE REDIRECT URI: ALLOW-LISTED, AND ECHOED. Google requires the token exchange's redirect_uri to
+// be byte-identical to the authorize call's. The client sends the exact string it authorized with
+// (`redirectUri`), but a redirect_uri the caller controls is a value the caller could point
+// somewhere else — so it is used ONLY if it equals this function's own allow-listed value
+// (GCAL_OAUTH_REDIRECT_URI, else ${SUPABASE_URL}/functions/v1/gcal-oauth-callback, where the Edge
+// runtime's SUPABASE_URL is the *.supabase.co project URL, never the auth.philoi.app custom
+// domain). A disagreeing client gets a 400 naming both strings, before Google is ever called,
+// instead of an opaque redirect_uri_mismatch. Older clients that send nothing get the allow-listed
+// value, as before. The value actually posted to Google is echoed back as `redirectUri` so the
+// client can assert in __DEV__ that nothing drifted (src/lib/google-calendar.ts).
+//
+// History: the client used to derive this from the APP's SUPABASE_URL. When that moved to
+// auth.philoi.app (2026-10-06) the authorize-time string moved with it while this one didn't, and
+// Calendar connect died at Google's authorize step with redirect_uri_mismatch.
 //
 // The PKCE verifier is a different kind of value and IS passed: it is a one-time nonce the client
 // generated, it is worthless without this function's client secret, and Google's whole point in
@@ -46,9 +54,22 @@ Deno.serve(async (req) => {
     } = await userClient.auth.getUser();
     if (userError || !user) return json({ error: 'Not authenticated.' }, 401);
 
-    const { code, codeVerifier } = await req.json();
+    const { code, codeVerifier, redirectUri: clientRedirectUri } = await req.json();
     if (typeof code !== 'string' || !code) return json({ error: 'Missing code.' }, 400);
     if (typeof codeVerifier !== 'string' || !codeVerifier) return json({ error: 'Missing codeVerifier.' }, 400);
+
+    const redirectUri = relayRedirectUri();
+    if (clientRedirectUri != null && clientRedirectUri !== redirectUri) {
+      return json(
+        {
+          error: `redirect_uri mismatch: app authorized with "${String(clientRedirectUri)}", server allows "${redirectUri}".`,
+          reason: 'redirect_uri_not_allowed',
+          expected: redirectUri,
+          received: clientRedirectUri,
+        },
+        400
+      );
+    }
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
@@ -59,13 +80,13 @@ Deno.serve(async (req) => {
         code,
         code_verifier: codeVerifier,
         grant_type: 'authorization_code',
-        redirect_uri: relayRedirectUri(),
+        redirect_uri: redirectUri,
       }),
     });
 
     const tokenData = await tokenRes.json().catch(() => ({}));
     if (!tokenRes.ok) {
-      return json({ error: 'Google rejected the authorization code.', detail: tokenData?.error ?? null }, 502);
+      return json({ error: 'Google rejected the authorization code.', detail: tokenData?.error ?? null, redirectUri }, 502);
     }
 
     // AUTHORITATIVE SCOPE CHECK. The client asks for calendar.events.readonly, but Google's consent
@@ -73,7 +94,7 @@ Deno.serve(async (req) => {
     // Google granted. Google's own `scope` on the token response is, so that is what gets checked.
     const grantedScopes: string = typeof tokenData.scope === 'string' ? tokenData.scope : '';
     if (!grantCoversCalendar(grantedScopes)) {
-      return json({ connected: false, reason: 'scope_not_granted' });
+      return json({ connected: false, reason: 'scope_not_granted', redirectUri });
     }
 
     // WHICH Google account this is. The member picks it from Google's account chooser and it is
@@ -98,9 +119,9 @@ Deno.serve(async (req) => {
         // Keep the row, but correct the display email — a member switching accounts without a new
         // refresh token would otherwise keep seeing the account they just moved off.
         if (email) await serviceClient.from('google_calendar_connections').update({ google_email: email }).eq('user_id', user.id);
-        return json({ connected: true, reused: true, accountEmail: email });
+        return json({ connected: true, reused: true, accountEmail: email, redirectUri });
       }
-      return json({ connected: false, reason: 'no_refresh_token' });
+      return json({ connected: false, reason: 'no_refresh_token', redirectUri });
     }
 
     const { error: upsertError } = await serviceClient.from('google_calendar_connections').upsert({
@@ -119,7 +140,7 @@ Deno.serve(async (req) => {
     // Any window cached against the previous grant is now the wrong account's.
     await serviceClient.from('google_calendar_window_cache').delete().eq('user_id', user.id);
 
-    return json({ connected: true, accountEmail: email });
+    return json({ connected: true, accountEmail: email, redirectUri });
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Unknown error.' }, 500);
   }
