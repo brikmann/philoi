@@ -80,7 +80,10 @@ export type PersonCard = {
  * `matched` says which one answered — the screens offer "Turn on matching" when it's false.
  */
 export async function fetchPeopleForYou(limit = 12): Promise<{ matched: boolean; people: PersonCard[] }> {
-  const alikes = await fetchGrindAlikes(undefined, limit).catch(() => []);
+  const alikes = await fetchGrindAlikes(undefined, limit).catch((e) => {
+    console.warn('[discover] get_grind_alikes failed — falling back to suggested people:', e);
+    return [];
+  });
   if (alikes.length > 0) {
     return {
       matched: true,

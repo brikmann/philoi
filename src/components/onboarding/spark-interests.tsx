@@ -9,8 +9,10 @@ import { Icon } from '@/components/ui/icon';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { Screen } from '@/components/ui/screen';
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme';
+import { fetchProgramsForUniversity, setMyProgram } from '@/lib/api/house';
 import { fetchInterestVocab, fetchMyInterests, PROGRAM_CATEGORY, setMyInterests, type VocabTag } from '@/lib/api/interests';
 import { useAuth } from '@/lib/auth/auth-context';
+import { invalidateIdentityBadge } from '@/lib/house/identity-badges';
 import { clearInterestsPending } from '@/lib/interests-flow';
 
 // ─────────────────────────── GYM SPARK · SETUP 2 of 2 (mock 405) ───────────────────────────
@@ -29,6 +31,25 @@ import { clearInterestsPending } from '@/lib/interests-flow';
 
 const MAX_INTERESTS = 12;
 
+// v2-fixes §2 — the program chip IS the program pick. Matching's "same program" signal (0275
+// grind_alike_rows: same_program = profiles.program_id equality, +15, the "Kin · same house" chip)
+// reads profiles.program_id, which only set_my_program writes — the same RPC the legacy program step
+// (setup-handle.tsx handleConfirmProgram) and house/change-program.tsx call. So a picked chip is
+// resolved to a programs row and written through that RPC.
+//
+// EXACT mapping, never a label match: an interest_vocab key → programs.program_key, looked up among
+// the user's own school's programs (get_programs_for_university). Only chips that name ONE program
+// are here; tracks and broad fields (pre_med, pre_law, engineering, finance, design, nursing) and
+// hobby-ish tags (music, writing, math) are left out, so a hobby never claims a house. A key whose
+// program the school doesn't list (e.g. business at Waterloo) simply writes nothing.
+const PROGRAM_KEY_FOR_TAG: ReadonlyMap<string, string> = new Map([
+  ['kinesiology', 'kinesiology'],
+  ['compsci', 'computer-science'],
+  ['psychology', 'psychology'],
+  ['biology', 'biology'],
+  ['business', 'business-administration'], // Laurier's BBA
+]);
+
 type GroupKey = 'active' | 'academic' | 'social';
 
 const GROUPS: readonly { key: GroupKey; title: string; dot: string }[] = [
@@ -45,7 +66,7 @@ function groupOf(tag: VocabTag): GroupKey {
 
 export function SparkInterestsScreen() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const userId = profile?.id ?? null;
 
   const [vocab, setVocab] = useState<VocabTag[] | null>(null);
@@ -93,8 +114,28 @@ export function SparkInterestsScreen() {
     await setMyInterests({ disciplines, interest_tags: tags }).catch((e) =>
       console.warn('[spark-interests] could not save — continuing:', e)
     );
+    // Before the reveal, so the matcher it calls already sees the program.
+    await saveProgramFromTags().catch((e) => console.warn('[spark-interests] could not save the program — continuing:', e));
     setSaving(false);
     router.replace({ pathname: '/discover/matchmaking', params: { onboarding: '1' } } as never);
+  }
+
+  /**
+   * One program per profile: the FIRST program chip in pick order wins (tags keeps pick order; a
+   * later program chip is still saved as an interest). No program chip picked → nothing is written
+   * and any existing program stays: set_my_program refuses null and no client path clears a program,
+   * and this page can't tell a program set here from one chosen in Profile → Change program.
+   */
+  async function saveProgramFromTags() {
+    const programKey = tags.map((t) => PROGRAM_KEY_FOR_TAG.get(t)).find((k) => k !== undefined);
+    if (!programKey || !userId || !profile?.university) return;
+    const rows = await fetchProgramsForUniversity(profile.university);
+    const program = rows.find((r) => r.program_key === programKey);
+    if (!program || program.program_id === profile.program_id) return;
+    await setMyProgram(program.program_id);
+    // Same follow-up as the legacy step: the identity stack beside your name is cached for 10 min.
+    invalidateIdentityBadge(userId);
+    await refreshProfile();
   }
 
   /** The vocabulary can't load: first run must never dead-end, so this exits to the Feed. */

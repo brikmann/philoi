@@ -16,18 +16,24 @@ import {
   type DiscoverRoom,
   type PersonCard,
 } from '@/lib/api/discover';
+import { GYM_ROOM_ID } from '@/lib/api/gym-spark';
 import { fetchSuggestedForests, type SuggestedForest } from '@/lib/api/interests';
 import { useAuth } from '@/lib/auth/auth-context';
 import { clearInterestsPending } from '@/lib/interests-flow';
+import { supabase } from '@/lib/supabase';
 
 // YOUR PEOPLE (ShareSpot ss2, mock 379 — onboarding 4/4). "Here's your crew." The matcher's people
 // and the rooms/clubs that fit what you picked, each with its own Add / Join. Every add is the
 // person's own tap — a friend request is never pre-picked — and each one seeds the first feed, so
 // Home isn't empty on day one. "Enter philoi" and "Skip" both end first run.
 //
-// GYM SPARK: setup is two pages now, so this reveal carries no step counter (it isn't a setup step),
-// and the rooms/clubs half is left out — clubs, Discover and rooms are hidden surfaces in the spark
-// (the gym room is joined server side). Matching is automatic, which the sub line says.
+// GYM SPARK: setup is two pages now, so this reveal carries no step counter (it isn't a setup step).
+// Matching is automatic, which the sub line says. "Rooms for you" (v2-fixes §4) always leads with
+// the Laurier Gym room — every account is auto-joined to it server side (0302), so it's drawn as
+// "your gym" / Joined, and it's never in a discovery list (privacy 'private'), so it can't come from
+// one. Under it, the clubs that match what you picked (get_suggested_forests — joined clubs land in
+// the Chat tab's list). The generic "busiest open rooms" list is left out in the spark: it isn't a
+// match, and its join path (0297 join_room) isn't on the prod server. So the section is never blank.
 
 export default function YourPeople() {
   const router = useRouter();
@@ -35,6 +41,7 @@ export default function YourPeople() {
   const [people, setPeople] = useState<PersonCard[] | null>(null);
   const [clubs, setClubs] = useState<SuggestedForest[] | null>(null);
   const [rooms, setRooms] = useState<DiscoverRoom[]>([]);
+  const [gymMembers, setGymMembers] = useState<number | null>(null);
   const [leaving, setLeaving] = useState(false);
   const adds = useAddFriend();
   const joins = useJoin();
@@ -44,14 +51,26 @@ export default function YourPeople() {
     fetchPeopleForYou(6).then((r) => {
       if (live) setPeople(r.people.filter((p) => !p.is_friend));
     });
+    fetchSuggestedForests(GYM_SPARK ? 3 : 4)
+      .then((r) => live && setClubs(r))
+      .catch((e) => {
+        console.warn('[your-people] could not load suggested clubs:', e);
+        if (live) setClubs([]);
+      });
     if (GYM_SPARK) {
+      // Members can read the room's roster (group_members: read if member), so this is the real count.
+      supabase
+        .from('group_members')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('group_id', GYM_ROOM_ID)
+        .then(({ count, error }) => {
+          if (error) console.warn('[your-people] could not count the gym room:', error);
+          else if (live) setGymMembers(count);
+        });
       return () => {
         live = false;
       };
     }
-    fetchSuggestedForests(4)
-      .then((r) => live && setClubs(r))
-      .catch(() => live && setClubs([]));
     // A course room for your school leads ("KP344 · your program"), then the busiest open rooms.
     fetchDiscoverRooms(undefined, 20)
       .then((r) => {
@@ -91,7 +110,9 @@ export default function YourPeople() {
         {!people ? <ActivityIndicator color={Colors.navEmber} /> : null}
         {people && people.length === 0 ? (
           <EmptyLine>
-            {GYM_SPARK ? 'No one lines up yet — you’re early.' : 'No one lines up yet — you’re early. Rooms below are open now.'}
+            {GYM_SPARK
+              ? 'No one lines up yet — you’re early. Your gym room below is already open.'
+              : 'No one lines up yet — you’re early. Rooms below are open now.'}
           </EmptyLine>
         ) : null}
         {(people ?? []).map((p) => (
@@ -109,7 +130,37 @@ export default function YourPeople() {
         ))}
         <ErrorLine message={adds.error} />
 
-        {!GYM_SPARK ? (
+        {GYM_SPARK ? (
+          <>
+            <SectionHead title="Rooms for you" />
+            <View style={styles.cards}>
+              <CoverCard
+                id={GYM_ROOM_ID}
+                emoji="🏋️"
+                title="Laurier Gym"
+                tagline="Everyone's gym chat"
+                sub={gymMembers ? `your gym · ${gymMembers} ${gymMembers === 1 ? 'member' : 'members'}` : 'your gym'}
+                // First run stays on rails; you're already in it — it's pinned in Chat.
+                onPress={() => {}}
+                action={<JoinButton label="Laurier Gym" state="joined" onPress={() => {}} />}
+              />
+              {(clubs ?? []).map((c) => (
+                <CoverCard
+                  key={c.id}
+                  id={c.id}
+                  emoji={c.emoji}
+                  title={c.name}
+                  tagline={c.purpose}
+                  sub={c.because ? `matches ${c.because}` : `${c.member_count} ${c.member_count === 1 ? 'member' : 'members'}`}
+                  online={c.locked_in_now}
+                  onPress={() => joins.run(c.id, () => joinClub(c.id))}
+                  action={<JoinButton label={c.name} state={joins.state[c.id]} onPress={() => joins.run(c.id, () => joinClub(c.id))} />}
+                />
+              ))}
+            </View>
+            <ErrorLine message={joins.error} />
+          </>
+        ) : (
           <>
             <SectionHead title="Rooms for you" />
             <View style={styles.cards}>
@@ -142,7 +193,7 @@ export default function YourPeople() {
             {clubs && clubs.length === 0 && rooms.length === 0 ? <EmptyLine>No rooms yet — you can start one from Search.</EmptyLine> : null}
             <ErrorLine message={joins.error} />
           </>
-        ) : null}
+        )}
       </ScrollView>
 
       <View style={styles.foot}>

@@ -43,7 +43,16 @@ export default function Matchmaking() {
 
   useEffect(() => {
     let live = true;
-    Promise.all([fetchMatchSummary().catch(() => null), fetchGrindAlikes(undefined, 7).catch(() => [])]).then(([s, n]) => {
+    Promise.all([
+      fetchMatchSummary().catch((e) => {
+        console.warn('[matchmaking] match summary failed:', e);
+        return null;
+      }),
+      fetchGrindAlikes(undefined, 7).catch((e) => {
+        console.warn('[matchmaking] get_grind_alikes failed:', e);
+        return [];
+      }),
+    ]).then(([s, n]) => {
       if (!live) return;
       setSummary(s);
       setNodes(n);
