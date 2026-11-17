@@ -35,22 +35,24 @@ const CLASSIC_SLOTS: Slot[] = [
   { key: 'profile', href: '/profile', label: 'You', glyph: 'person' },
 ];
 
-// THE GYM SPARK (CODE_PROMPT_gym_spark.md §5, mocks 400/402): Feed · Board · Chat · You. Four flat
-// tabs, no raised center — the Feed carries its own + FAB, so a Post slot would be a second copy of it.
-// Feed is the `index` route (home). Chat is (tabs)/chat, which in spark renders THE gym room's campfire
-// chat inline as a tab (components/group-room.tsx — the pre-0297 campfire screen, which works on today's
-// prod schema); v2 §7. Lock In left the bar for a "Start session" CTA on the Feed and the Board; /lockin still exists.
+// THE GYM SPARK: Feed · Board · [🔥 Lock In] [＋ Post] · Chat · You. Two raised center buttons, side by
+// side — the two things you DO (start a session, post one) — between the four tabs you browse. Neither is
+// ever lit: Lock In resumes a running session or opens the picker (global-footer decides which), Post
+// opens the composer from anywhere. Feed is the `index` route; Chat is the chat list ((tabs)/chat).
 // Search/Discover keep their routes, because installed builds and pushes deep-link to /social and /chat.
 const SPARK_SLOTS: Slot[] = [
   { key: 'index', href: '/', label: 'Feed', glyph: 'home' },
   { key: 'board', href: '/board', label: 'Board', glyph: 'board' },
+  { key: 'lockin', href: '/lockin', label: 'Lock In', glyph: 'flame', center: true },
+  { key: 'post', href: '/agora/compose', label: 'Post', glyph: 'plus', center: true },
   { key: 'chat', href: '/chat', label: 'Chat', glyph: 'chat' },
   { key: 'profile', href: '/profile', label: 'You', glyph: 'person' },
 ];
 
 export const TAB_SLOTS: Slot[] = GYM_SPARK ? SPARK_SLOTS : CLASSIC_SLOTS;
 
-const HERO = 56;
+// Spark draws TWO raised buttons in a six-slot bar, so each is a touch smaller than classic's one.
+const HERO = GYM_SPARK ? 50 : 56;
 const RING = 5;
 /** Mock 346's `.pbtn`: a rounded square (18 of 54), not a disc — the Post button, not the old flame. */
 const HERO_RADIUS = 18;
@@ -75,27 +77,31 @@ export function BottomBar({
           const focused = active === slot.key;
 
           if (slot.center) {
+            const heroLive = slot.key === 'lockin' && sessionLive;
             return (
               <Pressable
                 key={slot.key}
                 onPress={() => onSelect(slot.key)}
                 style={styles.slot}
                 accessibilityRole="button"
-                accessibilityLabel="New post">
+                accessibilityLabel={
+                  slot.key === 'post' ? 'New post' : heroLive ? `${slot.label}, session running` : slot.label
+                }>
                 <View style={styles.ring}>
                   <View style={styles.hero}>
                     <Svg width={HERO} height={HERO} style={StyleSheet.absoluteFill}>
                       <Defs>
-                        <LinearGradient id="navHero" x1="0" y1="0" x2="1" y2="1">
+                        <LinearGradient id={`navHero-${slot.key}`} x1="0" y1="0" x2="1" y2="1">
                           <Stop offset="0" stopColor={Colors.navEmber} />
                           <Stop offset="0.5" stopColor={Colors.navEmber2} />
                           <Stop offset="1" stopColor={Colors.gold} />
                         </LinearGradient>
                       </Defs>
-                      <Rect width={HERO} height={HERO} rx={HERO_RADIUS} fill="url(#navHero)" />
+                      <Rect width={HERO} height={HERO} rx={HERO_RADIUS} fill={`url(#navHero-${slot.key})`} />
                     </Svg>
-                    <NavGlyph name="plus" size={30} color="#160D26" />
+                    <NavGlyph name={slot.glyph} size={slot.key === 'post' ? 30 : 26} color="#160D26" />
                   </View>
+                  {heroLive ? <View style={[styles.liveDot, styles.heroLiveDot]} /> : null}
                 </View>
                 <Text style={[styles.label, styles.labelCenter]}>{slot.label}</Text>
               </Pressable>
@@ -172,6 +178,16 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.7,
     shadowRadius: 12,
     elevation: 12,
+  },
+  // On a raised center button (spark's Lock In): the same dot, pinned to the button's corner.
+  heroLiveDot: {
+    top: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2.5,
+    borderColor: '#120B22',
   },
   // A lock-in is running: green, top-right of the pencil.
   liveDot: {

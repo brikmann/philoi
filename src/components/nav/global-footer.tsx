@@ -148,6 +148,12 @@ export function GlobalFooter() {
               router.push(slot.href as never);
               return;
             }
+            // Spark's raised Lock In: a running session → straight back into it (same as tapping the live
+            // bar); none → the picker tab to start one.
+            if (GYM_SPARK && key === 'lockin' && activeSession) {
+              router.push('/lock-in');
+              return;
+            }
             // navigate(), not push(): back to the (tabs) screen already in the stack, never a second copy.
             router.navigate(slot.href as never);
           }}
